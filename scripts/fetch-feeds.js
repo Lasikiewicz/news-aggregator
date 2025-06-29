@@ -9,7 +9,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 // --- Environment Variable Check ---
 if (!process.env.GEMINI_API_KEY) {
     console.error("FATAL ERROR: GEMINI_API_KEY is not defined in your .env.local file.");
-    process.exit(1); // Exit the script immediately if the key is missing
+    process.exit(1);
 }
 
 // --- Firebase and RSS Parser Setup ---
@@ -48,11 +48,8 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
         const imageUrls = [];
         articleBody.find(imageSelector).each((i, elem) => {
             const src = $(elem).attr('src');
-            if (src && src.startsWith('http')) {
-                // Basic filter for common non-content images like spacers or tiny icons
-                if (!src.includes('base64') && !src.includes('.svg')) {
-                    imageUrls.push(src);
-                }
+            if (src && src.startsWith('http') && !src.includes('.svg')) {
+                imageUrls.push(src);
             }
         });
         
@@ -68,11 +65,25 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
 async function rewriteArticleWithAI(text, imageUrls) {
     if (!text) return null;
     const imageList = imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n');
-    const prompt = `Act as a professional gaming journalist and web layout editor. Rewrite the following article text into an original, engaging blog post. Then, intelligently embed all the provided image URLs into the article content using standard <img> tags with the class="article-image". If more than one image is placed together, wrap them in a single <div class="image-gallery">. Use all the provided images. The output must be pure HTML. Do NOT use markdown.
+
+    // NEW PROMPT: Instructs the AI to designate a full-width parallax image.
+    const prompt = `Act as a professional gaming journalist and web layout editor.
+    TASK: Rewrite the following article text into an original, engaging blog post. Intelligently embed all the provided image URLs into the article content.
+
+    RULES:
+    1. The final output must be pure, well-structured HTML. Do not use markdown.
+    2. Weave the images into the article where they make sense.
+    3. For regular images, use standard <img> tags with the class="article-image".
+    4. **Pick ONE image from the middle of the list and give it the class "full-width-parallax" instead.** This image will be a full-screen parallax breaker.
+    5. If you place more than one image together, wrap them in a single <div class="image-gallery">.
+    6. Use all the images provided.
+
     PROVIDED IMAGE URLS:
     ${imageList}
+
     ARTICLE TEXT:
     "${text.substring(0, 5000)}"`;
+
     try {
         const model = genAI.getGenerativeModel({ model: AI_MODEL_NAME });
         const result = await model.generateContent(prompt);

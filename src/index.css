@@ -2,6 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
-.article-content img {
+/* Main Parallax Header on Article Page */
+.main-parallax-header {
+    height: 60vh;
+    position: relative;
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.header-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 3rem;
+}
+
+.header-content {
+    max-width: 80rem; /* Corresponds to max-w-screen-xl */
+    width: 100%;
+    color: white;
+}
+
+.header-content .category-tag {
+    @apply text-sm font-bold bg-blue-500 text-white px-3 py-1 rounded-full mb-4 inline-block;
+}
+
+.header-content h1 {
+    @apply text-4xl md:text-6xl font-bold leading-tight drop-shadow-lg;
+}
+
+.header-content .published-date {
+    @apply text-slate-300 mt-4;
+}
+
+/* Container for the main article text */
+.article-body-wrapper {
+    @apply bg-white p-8 md:p-16 w-4/5 max-w-4xl mx-auto -mt-20 relative rounded-t-lg shadow-2xl;
+}
+
+/* Regular images embedded by the AI */
+.article-content img.article-image {
   @apply rounded-lg shadow-xl my-8 mx-auto;
+}
+
+/* Container for the full-width parallax image */
+.full-width-parallax-container {
+    /* Breaks out of the parent container */
+    width: 100vw;
+    margin-left: 50%;
+    transform: translateX(-50%);
+    height: 50vh;
+    position: relative;
+    @apply my-16;
+}
+
+/* The parallax image itself */
+.parallax-image {
+    height: 100%;
+    width: 100%;
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
 }
