@@ -5,16 +5,11 @@ import { Header, Error, Loading, Hero, ArticleList, LeftSidebar, RightSidebar } 
 import { BrowserRouter as Router, Routes, Route, useSearchParams } from 'react-router-dom';
 import { ArticlePage } from './ArticlePage';
 
-/**
- * This component contains all the page logic.
- * Because it's rendered inside <Router>, it can safely use router hooks.
- */
 const AppContent = () => {
   const [articles, setArticles] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // All filters are now driven by URL Search Params for shareable links
   const [searchParams, setSearchParams] = useSearchParams();
   const activeCategory = searchParams.get('category') || 'All';
   const activeSubCategory = searchParams.get('subCategory');
@@ -33,29 +28,32 @@ const AppContent = () => {
     return () => unsubscribe();
   }, []);
 
-  // Memoized calculations for categories and sub-categories
-  const categories = useMemo(() => ['All', ...new Set(articles.map(a => a.category))], [articles]);
-
-  const subCategories = useMemo(() => {
-    if (activeCategory === 'All') return [];
-    return [...new Set(articles
-        .filter(a => a.category === activeCategory && a.subCategory)
-        .map(a => a.subCategory))]
-  }, [articles, activeCategory]);
-
-  const allTags = useMemo(() => {
-    const tagCounts = articles.reduce((acc, article) => {
-      if (article.tags) {
-        article.tags.forEach(tag => {
-          acc[tag] = (acc[tag] || 0) + 1;
-        });
-      }
-      return acc;
-    }, {});
-    return Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).map(entry => entry[0]);
+  const { categoryMap, allTags } = useMemo(() => {
+    const catMap = {};
+    const tagCounts = {};
+    articles.forEach(article => {
+        // Defensive check for category to prevent errors with incomplete data
+        if (article && article.category) {
+            if (!catMap[article.category]) {
+                catMap[article.category] = new Set();
+            }
+            if (article.subCategory) {
+                catMap[article.category].add(article.subCategory);
+            }
+        }
+        if (article.tags) {
+            article.tags.forEach(tag => {
+                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+        }
+    });
+    const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+    Object.keys(catMap).forEach(key => {
+        catMap[key] = Array.from(catMap[key]).sort();
+    });
+    return { categoryMap: catMap, allTags: sortedTags };
   }, [articles]);
 
-  // Filter articles based on the active URL params
   const filteredArticles = useMemo(() => {
     let result = articles;
     if (activeCategory !== 'All') {
@@ -70,35 +68,37 @@ const AppContent = () => {
     return result;
   }, [articles, activeCategory, activeSubCategory, activeTag]);
 
-  // Handlers to update the URL search params, which triggers a re-render
-  const handleCategorySelect = (category) => {
-      const newParams = category === 'All' ? {} : { category };
-      setSearchParams(newParams);
-  };
+  const handleCategorySelect = (category, subCategory = null) => {
+      // Preserve existing search params when changing category
+      const params = new URLSearchParams(searchParams.toString());
+      if (category && category !== 'All') {
+          params.set('category', category);
+      } else {
+          params.delete('category');
+      }
 
-  const handleSubCategorySelect = (subCategory) => {
-    const params = new URLSearchParams(searchParams);
-    if(subCategory) {
-        params.set('subCategory', subCategory);
-    } else {
-        params.delete('subCategory');
-    }
-    setSearchParams(params);
+      if (subCategory) {
+          params.set('subCategory', subCategory);
+      } else {
+          params.delete('subCategory');
+      }
+      // Selecting a category should clear the tag filter
+      params.delete('tag');
+      setSearchParams(params);
   };
 
   const handleTagSelect = (tag) => {
     const params = new URLSearchParams();
     if (tag) {
-      params.set('tag', tag);
+        params.set('tag', tag);
     }
+    // Selecting a tag clears category/subcategory filters
     setSearchParams(params);
   };
 
-  // The main page content
   const HomePage = () => {
     if (loading) return <Loading />;
     if (error) return <Error message={error} />;
-
     const heroArticles = filteredArticles.slice(0, 5);
     const trendingArticles = filteredArticles.slice(5, 9);
     const topStories = filteredArticles.slice(9, 13);
@@ -119,7 +119,7 @@ const AppContent = () => {
             </div>
             <div className="lg:col-span-3">
                  <RightSidebar
-                    categories={categories}
+                    categories={['All', ...Object.keys(categoryMap)]}
                     activeCategory={activeCategory}
                     onCategorySelect={handleCategorySelect}
                     tags={allTags}
@@ -135,12 +135,10 @@ const AppContent = () => {
   return (
     <div className="bg-slate-100 min-h-screen font-sans">
       <Header
-          categories={categories}
+          categoryMap={categoryMap}
           activeCategory={activeCategory}
-          onCategorySelect={handleCategorySelect}
-          subCategories={subCategories}
           activeSubCategory={activeSubCategory}
-          onSubCategorySelect={handleSubCategorySelect}
+          onCategorySelect={handleCategorySelect}
       />
       <main className="p-4 md:p-8">
         <Routes>
@@ -152,9 +150,6 @@ const AppContent = () => {
   );
 }
 
-/**
- * The main App component now only handles the Router setup.
- */
 function App() {
   return (
     <Router basename="/news-aggregator">
