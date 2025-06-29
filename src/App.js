@@ -5,19 +5,15 @@ import { Header, Error, Loading, Hero, ArticleList, LeftSidebar, RightSidebar } 
 import { BrowserRouter as Router, Routes, Route, useSearchParams } from 'react-router-dom';
 import { ArticlePage } from './ArticlePage';
 
-/**
- * This component contains all the page logic.
- * Because it's rendered inside <Router>, it can safely use router hooks.
- */
 const AppContent = () => {
   const [articles, setArticles] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  
-  // All filters are now driven by URL Search Params for shareable links
+
   const [searchParams, setSearchParams] = useSearchParams();
   const activeCategory = searchParams.get('category') || 'All';
   const activeSubCategory = searchParams.get('subCategory');
+  const activeTag = searchParams.get('tag');
 
   useEffect(() => {
     const q = query(collection(db, "articles"), orderBy("published", "desc"));
@@ -32,49 +28,68 @@ const AppContent = () => {
     return () => unsubscribe();
   }, []);
 
-  // Memoized calculations for categories and sub-categories
-  const categories = useMemo(() => ['All', ...new Set(articles.map(a => a.category))], [articles]);
-  
-  const subCategories = useMemo(() => {
-    if (activeCategory === 'All') return [];
-    return [...new Set(articles
-        .filter(a => a.category === activeCategory && a.subCategory)
-        .map(a => a.subCategory))]
-  }, [articles, activeCategory]);
+  const { categoryMap, allTags } = useMemo(() => {
+    const catMap = {};
+    const tagCounts = {};
+    articles.forEach(article => {
+        if (article && article.category) {
+            if (!catMap[article.category]) {
+                catMap[article.category] = new Set();
+            }
+            if (article.subCategory) {
+                catMap[article.category].add(article.subCategory);
+            }
+        }
+        if (article.tags) {
+            article.tags.forEach(tag => {
+                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+        }
+    });
+    const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+    Object.keys(catMap).forEach(key => {
+        catMap[key] = Array.from(catMap[key]).sort();
+    });
+    return { categoryMap: catMap, allTags: sortedTags };
+  }, [articles]);
 
-  // Filter articles based on the active URL params
   const filteredArticles = useMemo(() => {
     let result = articles;
-    if (activeCategory !== 'All') {
-        result = result.filter(a => a.category === activeCategory);
-    }
-    if (activeSubCategory) {
-        result = result.filter(a => a.subCategory === activeSubCategory);
+    if (activeTag) {
+        result = result.filter(a => a.tags && a.tags.includes(activeTag));
+    } else {
+        if (activeCategory !== 'All') {
+            result = result.filter(a => a.category === activeCategory);
+        }
+        if (activeSubCategory) {
+            result = result.filter(a => a.subCategory === activeSubCategory);
+        }
     }
     return result;
-  }, [articles, activeCategory, activeSubCategory]);
-  
-  // Handlers to update the URL search params, which triggers a re-render
-  const handleCategorySelect = (category) => {
-      const newParams = category === 'All' ? {} : { category };
-      setSearchParams(newParams);
+  }, [articles, activeCategory, activeSubCategory, activeTag]);
+
+  const handleCategorySelect = (category, subCategory = null) => {
+      const params = new URLSearchParams();
+      if (category && category !== 'All') {
+          params.set('category', category);
+      }
+      if (subCategory) {
+          params.set('subCategory', subCategory);
+      }
+      setSearchParams(params);
   };
-  
-  const handleSubCategorySelect = (subCategory) => {
-    const params = new URLSearchParams(searchParams);
-    if(subCategory) {
-        params.set('subCategory', subCategory);
-    } else {
-        params.delete('subCategory');
+
+  const handleTagSelect = (tag) => {
+    const params = new URLSearchParams();
+    if (tag) {
+        params.set('tag', tag);
     }
     setSearchParams(params);
-  }
+  };
 
-  // The main page content
   const HomePage = () => {
     if (loading) return <Loading />;
     if (error) return <Error message={error} />;
-
     const heroArticles = filteredArticles.slice(0, 5);
     const trendingArticles = filteredArticles.slice(5, 9);
     const topStories = filteredArticles.slice(9, 13);
@@ -83,37 +98,38 @@ const AppContent = () => {
     return (
       <div className="w-full max-w-screen-xl mx-auto">
         <Hero articles={heroArticles} />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
             <div className="lg:col-span-3">
                 <LeftSidebar trending={trendingArticles} topStories={topStories} />
             </div>
             <div className="lg:col-span-6">
                  <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b-2 border-slate-200 pb-2">
-                    {activeSubCategory || activeCategory} News
+                    {activeTag || activeSubCategory || activeCategory} News
                 </h2>
                  <ArticleList articles={mainArticles} />
             </div>
             <div className="lg:col-span-3">
                  <RightSidebar
-                    categories={categories}
+                    categories={['All', ...Object.keys(categoryMap)]}
                     activeCategory={activeCategory}
                     onCategorySelect={handleCategorySelect}
+                    tags={allTags}
+                    onTagSelect={handleTagSelect}
+                    activeTag={activeTag}
                  />
             </div>
         </div>
       </div>
     );
   };
-    
+
   return (
     <div className="bg-slate-100 min-h-screen font-sans">
-      <Header 
-          categories={categories} 
+      <Header
+          categoryMap={categoryMap}
           activeCategory={activeCategory}
-          onCategorySelect={handleCategorySelect}
-          subCategories={subCategories}
           activeSubCategory={activeSubCategory}
-          onSubCategorySelect={handleSubCategorySelect}
+          onCategorySelect={handleCategorySelect}
       />
       <main className="p-4 md:p-8">
         <Routes>
@@ -125,11 +141,7 @@ const AppContent = () => {
   );
 }
 
-/**
- * The main App component now only handles the Router setup.
- */
 function App() {
-  // Conditionally set the basename for production environment
   const basename = process.env.NODE_ENV === 'production' ? '/news-aggregator' : '/';
 
   return (
