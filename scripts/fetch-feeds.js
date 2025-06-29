@@ -24,6 +24,9 @@ const feeds = [
     { url: 'https://news.xbox.com/en-us/feed/', source: 'Xbox Wire', category: 'Xbox', articleSelector: '.entry-content', imageSelector: 'article .wp-post-image' },
     { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer', category: 'PC', articleSelector: '#article-body', imageSelector: '#article-body figure img' },
     { url: 'https://www.rockpapershotgun.com/feed', source: 'Rock Paper Shotgun', category: 'PC', articleSelector: '.article_body_content', imageSelector: '.article_image_wrapper img' },
+    { url: 'https://toucharcade.com/feed', source: 'TouchArcade', category: 'Mobile', articleSelector: '.entry-content', imageSelector: '.entry-content img' },
+    { url: 'https://www.droidgamers.com/feed/', source: 'Droid Gamers', category: 'Mobile', articleSelector: '.entry-content', imageSelector: '.entry-content img' },
+    { url: 'http://www.pocketgamer.biz/rss/', source: 'PocketGamer.biz', category: 'Mobile', articleSelector: '.acontent', imageSelector: '.acontent img' }
 ];
 
 /**

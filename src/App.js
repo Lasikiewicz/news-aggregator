@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from './firebase'; // Auth is no longer imported
+import { db } from './firebase';
 import { Header, Article, Search, Filters, Error, Loading } from './components';
 import { filterArticles } from './utils';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ArticlePage } from './ArticlePage';
 
 function App() {
   const [articles, setArticles] = useState([]);
@@ -14,7 +16,6 @@ function App() {
   const [source, setSource] = useState('');
   const [type, setType] = useState('');
 
-  // This useEffect now runs once when the app mounts, without waiting for a user.
   useEffect(() => {
     console.log('App mounted. Attaching Firestore listener...');
     
@@ -42,7 +43,7 @@ function App() {
         console.log('Cleaning up Firestore listener.');
         unsubscribe();
     };
-  }, []); // Empty dependency array ensures this runs only once.
+  }, []);
 
   useEffect(() => {
     const filtered = filterArticles(articles, searchTerm, category, source, type);
@@ -73,20 +74,29 @@ function App() {
       </div>
     );
   }
+  
+  const HomePage = () => (
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+        <Search searchTerm={searchTerm} onSearch={setSearchTerm} />
+        <Filters categories={allCategories} sources={allSources} types={allTypes} onCategoryChange={setCategory} onSourceChange={setSource} onTypeChange={setType} />
+      </div>
+      {renderContent()}
+    </div>
+  );
 
   return (
-    <div className="bg-slate-50 min-h-screen font-sans">
-      <Header />
-      <main className="p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
-            <Search searchTerm={searchTerm} onSearch={setSearchTerm} />
-            <Filters categories={allCategories} sources={allSources} types={allTypes} onCategoryChange={setCategory} onSourceChange={setSource} onTypeChange={setType} />
-          </div>
-          {renderContent()}
-        </div>
-      </main>
-    </div>
+    <Router>
+      <div className="bg-slate-50 min-h-screen font-sans">
+        <Header />
+        <main className="p-4 md:p-8">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/article/:articleId" element={<ArticlePage />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
   );
 }
 

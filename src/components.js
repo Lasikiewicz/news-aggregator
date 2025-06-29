@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export const Header = () => (
   <header className="bg-white shadow-md">
@@ -10,11 +11,12 @@ export const Header = () => (
 
 export const Article = ({ article }) => (
   <article className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-300">
-    <h2 className="text-xl font-bold mb-2 text-slate-800">
-      <a href={article.link} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
+    <Link to={`/article/${article.id}`}>
+      <h2 className="text-xl font-bold mb-2 text-slate-800 hover:text-blue-600 transition-colors">
         {article.title}
-      </a>
-    </h2>
+      </h2>
+    </Link>
+    {article.imageUrl && <img src={article.imageUrl} alt={article.title} className="mb-4 rounded-lg" />}
     <p className="text-slate-600 mb-4">{article.contentSnippet}</p>
     <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
       <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md">Source: {article.source}</span>
