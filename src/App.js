@@ -10,7 +10,6 @@ function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [activeSubCategory, setActiveSubCategory] = useState(null);
 
   useEffect(() => {
     const q = query(collection(db, "articles"), orderBy("published", "desc"));
@@ -27,29 +26,11 @@ function App() {
 
   const categories = useMemo(() => ['All', ...new Set(articles.map(a => a.category))], [articles]);
   
-  const subCategories = useMemo(() => {
-    if (activeCategory === 'All') return [];
-    return [...new Set(articles
-        .filter(a => a.category === activeCategory && a.subCategory)
-        .map(a => a.subCategory))]
-  }, [articles, activeCategory]);
-
   const filteredArticles = useMemo(() => {
-    let result = articles;
-    if (activeCategory !== 'All') {
-        result = result.filter(a => a.category === activeCategory);
-    }
-    if (activeSubCategory) {
-        result = result.filter(a => a.subCategory === activeSubCategory);
-    }
-    return result;
-  }, [articles, activeCategory, activeSubCategory]);
+    if (activeCategory === 'All') return articles;
+    return articles.filter(a => a.category === activeCategory);
+  }, [articles, activeCategory]);
   
-  const handleCategorySelect = (category) => {
-      setActiveCategory(category);
-      setActiveSubCategory(null);
-  };
-
   const HomePage = () => {
     if (loading) return <Loading />;
     if (error) return <Error message={error} />;
@@ -68,7 +49,7 @@ function App() {
             </div>
             <div className="lg:col-span-6">
                  <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b-2 border-slate-200 pb-2">
-                    {activeSubCategory || activeCategory} News
+                    {activeCategory} News
                 </h2>
                  <ArticleList articles={mainArticles} />
             </div>
@@ -76,7 +57,7 @@ function App() {
                  <RightSidebar
                     categories={categories}
                     activeCategory={activeCategory}
-                    onCategorySelect={handleCategorySelect}
+                    onCategorySelect={setActiveCategory}
                  />
             </div>
         </div>
@@ -90,10 +71,7 @@ function App() {
         <Header 
             categories={categories} 
             activeCategory={activeCategory}
-            onCategorySelect={handleCategorySelect}
-            subCategories={subCategories}
-            activeSubCategory={activeSubCategory}
-            onSubCategorySelect={setActiveSubCategory}
+            onCategorySelect={setActiveCategory}
         />
         <main className="p-4 md:p-8">
           <Routes>
