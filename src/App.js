@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Header, Error, Loading, SubNav, Hero } from './components';
+import { Header, Error, Loading, SubNav, Hero, ArticleList, LeftSidebar, RightSidebar } from './components';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ArticlePage } from './ArticlePage';
 
@@ -54,6 +54,11 @@ function App() {
     if (loading) return <Loading />;
     if (error) return <Error message={error} />;
 
+    const heroArticles = filteredArticles.slice(0, 5);
+    const trendingArticles = filteredArticles.slice(5, 9);
+    const topStories = filteredArticles.slice(9, 13);
+    const mainArticles = filteredArticles.slice(5);
+
     return (
       <div className="w-full max-w-screen-xl mx-auto">
         <SubNav 
@@ -64,7 +69,25 @@ function App() {
             activeSubCategory={activeSubCategory}
             onSubCategorySelect={setActiveSubCategory}
         />
-        <Hero articles={filteredArticles.slice(0, 5)} />
+        <Hero articles={heroArticles} />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-12">
+            <div className="lg:col-span-3">
+                <LeftSidebar trending={trendingArticles} topStories={topStories} />
+            </div>
+            <div className="lg:col-span-6">
+                 <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b-2 border-slate-200 pb-2">
+                    {activeSubCategory || activeCategory} News
+                </h2>
+                 <ArticleList articles={mainArticles} />
+            </div>
+            <div className="lg:col-span-3">
+                 <RightSidebar
+                    categories={categories}
+                    activeCategory={activeCategory}
+                    onCategorySelect={handleCategorySelect}
+                 />
+            </div>
+        </div>
       </div>
     );
   };
