@@ -1,5 +1,6 @@
 {
   "name": "news-aggregator",
+  "homepage": "https://lasikiewicz.github.io/news-aggregator",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
