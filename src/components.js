@@ -5,7 +5,9 @@ export const Header = () => (
   <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-50 border-b border-slate-200">
     <div className="max-w-screen-xl mx-auto py-3 px-8 flex justify-between items-center">
       <Link to="/">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight hover:text-blue-600 transition-colors">The Gaming Feed</h1>
+        <div className="text-2xl font-bold text-slate-900 tracking-tighter">
+          Gilga<span className="text-blue-600">.</span>
+        </div>
       </Link>
       <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
         <Link to="/" className="hover:text-blue-600">Home</Link>
@@ -67,8 +69,8 @@ export const ArticleList = ({ articles }) => (
     </div>
 );
 
-export const Sidebar = ({ popularArticles, categories, activeCategory, onCategorySelect }) => (
-    <aside className="sticky top-24 space-y-8">
+export const Sidebar = ({ popularArticles }) => (
+    <aside className="sticky top-24">
         <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
             <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Most Read</h3>
             <div className="space-y-4">
@@ -81,26 +83,6 @@ export const Sidebar = ({ popularArticles, categories, activeCategory, onCategor
                             </h4>
                         </div>
                     </div>
-                ))}
-            </div>
-        </div>
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Platforms</h3>
-            <div className="flex flex-col items-start gap-2">
-                <button 
-                    onClick={() => onCategorySelect('')}
-                    className={`font-semibold transition-colors ${!activeCategory ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
-                >
-                    All Platforms
-                </button>
-                {categories.map(category => (
-                     <button 
-                        key={category}
-                        onClick={() => onCategorySelect(category)}
-                        className={`font-semibold transition-colors ${activeCategory === category ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
-                    >
-                         {category}
-                    </button>
                 ))}
             </div>
         </div>
