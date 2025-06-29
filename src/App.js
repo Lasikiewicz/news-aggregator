@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Header, Error, Loading, Hero, ArticleList, SubNav } from './components';
+import { Header, Error, Loading, ArticleList, LeftSidebar, RightSidebar, SubNav, Hero } from './components';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ArticlePage } from './ArticlePage';
 
@@ -10,7 +10,6 @@ function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [activeSubCategory, setActiveSubCategory] = useState(null);
 
   useEffect(() => {
     const q = query(collection(db, "articles"), orderBy("published", "desc"));
@@ -27,52 +26,52 @@ function App() {
 
   const categories = useMemo(() => ['All', ...new Set(articles.map(a => a.category))], [articles]);
   
-  const subCategories = useMemo(() => {
-    if (activeCategory === 'All') return [];
-    return [...new Set(articles
-        .filter(a => a.category === activeCategory && a.subCategory)
-        .map(a => a.subCategory))]
-  }, [articles, activeCategory]);
-
   const filteredArticles = useMemo(() => {
-    let result = articles;
-    if (activeCategory !== 'All') {
-        result = result.filter(a => a.category === activeCategory);
-    }
-    if (activeSubCategory) {
-        result = result.filter(a => a.subCategory === activeSubCategory);
-    }
-    return result;
-  }, [articles, activeCategory, activeSubCategory]);
+    if (activeCategory === 'All') return articles;
+    return articles.filter(a => a.category === activeCategory);
+  }, [articles, activeCategory]);
   
-  const handleCategorySelect = (category) => {
-      setActiveCategory(category);
-      setActiveSubCategory(null); // Reset sub-category when main category changes
-  };
-
   const HomePage = () => {
     if (loading) return <Loading />;
     if (error) return <Error message={error} />;
 
+    // Slicing articles for the new layout with the restored Hero
     const heroArticles = filteredArticles.slice(0, 5);
-    const mainArticles = filteredArticles.slice(5);
+    const trendingArticles = filteredArticles.slice(5, 9);
+    const topStories = filteredArticles.slice(9, 13);
+    const mainArticles = filteredArticles.slice(13);
 
     return (
       <div className="w-full max-w-screen-xl mx-auto">
         <SubNav 
             categories={categories} 
             activeCategory={activeCategory}
-            onCategorySelect={handleCategorySelect}
-            subCategories={subCategories}
-            activeSubCategory={activeSubCategory}
-            onSubCategorySelect={setActiveSubCategory}
+            onCategorySelect={setActiveCategory}
         />
+
+        {/* --- HERO SECTION RESTORED HERE --- */}
         <Hero articles={heroArticles} />
-        <div className="mt-12">
-            <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b-2 border-blue-500 pb-2">
-                {activeSubCategory || activeCategory} News
-            </h2>
-            <ArticleList articles={mainArticles} />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-12">
+            {/* Left Sidebar */}
+            <div className="lg:col-span-3">
+                <LeftSidebar trending={trendingArticles} topStories={topStories} />
+            </div>
+            {/* Main Content */}
+            <div className="lg:col-span-6">
+                 <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b-2 border-slate-200 pb-2">
+                    All News
+                </h2>
+                 <ArticleList articles={mainArticles} />
+            </div>
+            {/* Right Sidebar */}
+            <div className="lg:col-span-3">
+                 <RightSidebar
+                    categories={categories}
+                    activeCategory={activeCategory}
+                    onCategorySelect={setActiveCategory}
+                 />
+            </div>
         </div>
       </div>
     );

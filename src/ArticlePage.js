@@ -11,18 +11,16 @@ export const ArticlePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // This function will find the special parallax image and separate it from the rest.
+  // This function handles the replacement of our custom image tags
   const parseOptions = {
     replace: (domNode) => {
       // Find the special full-width parallax image
       if (domNode.attribs && domNode.attribs.class === 'full-width-parallax') {
         return (
-            <div className="full-width-parallax-container">
-                <div 
-                    className="parallax-image"
-                    style={{ backgroundImage: `url(${domNode.attribs.src})`}}
-                ></div>
-            </div>
+          <div 
+              className="full-width-parallax-image"
+              style={{ backgroundImage: `url(${domNode.attribs.src})`}}
+          ></div>
         );
       }
       // Find image galleries
@@ -60,7 +58,6 @@ export const ArticlePage = () => {
   if (!article) return null;
 
   return (
-    // The main container is simplified as the new CSS handles the layout.
     <div className="article-page-container">
       <header 
         className="main-parallax-header"
@@ -70,7 +67,6 @@ export const ArticlePage = () => {
             <div className="header-content">
                 <span className="category-tag">{article.category}</span>
                 <h1>{article.title}</h1>
-                <p className="published-date">Published on {article.published.toLocaleDateString()}</p>
             </div>
         </div>
       </header>
