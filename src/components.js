@@ -133,14 +133,14 @@ export const ImageGallery = ({ images }) => {
     if (!images || images.length === 0) return null;
 
     return (
-        <div className="relative w-full h-96 my-8 rounded-lg shadow-xl overflow-hidden bg-slate-200">
+        <div className="relative w-full h-96 my-8 rounded-lg shadow-xl overflow-hidden bg-slate-800">
             {images.map((image, index) => (
                 <div
                     key={index}
                     className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
                 >
                     {React.cloneElement(image, {
-                        className: 'w-full h-full object-contain'
+                        className: 'w-full h-full object-cover'
                     })}
                 </div>
             ))}
