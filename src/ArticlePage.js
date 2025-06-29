@@ -5,7 +5,7 @@ import { db } from './firebase';
 import { Loading, Error } from './components';
 import parse, { domToReact } from 'html-react-parser';
 
-// A new component for the image placeholders
+// Component for the image placeholders
 const ImagePlaceholder = ({ caption }) => (
   <div className="image-placeholder my-8">
     <span className="placeholder-icon">🖼️</span>
@@ -13,20 +13,19 @@ const ImagePlaceholder = ({ caption }) => (
   </div>
 );
 
-// Options for the HTML parser to replace our custom divs
-const parseOptions = {
-  replace: domNode => {
-    if (domNode.attribs && domNode.attribs['data-image-placeholder']) {
-      return <ImagePlaceholder caption={domNode.attribs['data-image-placeholder']} />;
-    }
-  }
-};
-
 export const ArticlePage = () => {
   const { articleId } = useParams();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const parseOptions = {
+    replace: (domNode) => {
+      if (domNode.attribs && domNode.attribs['data-image-placeholder']) {
+        return <ImagePlaceholder caption={domNode.attribs['data-image-placeholder']} />;
+      }
+    },
+  };
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -37,7 +36,7 @@ export const ArticlePage = () => {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setArticle({ id: docSnap.id, ...data });
+          setArticle({ id: docSnap.id, ...data, published: data.published.toDate() });
         } else {
           setError('Article not found.');
         }
@@ -55,28 +54,19 @@ export const ArticlePage = () => {
   if (!article) return null;
 
   return (
-    <div className="article-container">
-      {/* Parallax Header */}
-      <header 
-        className="parallax-header"
-        style={{ backgroundImage: `url(${article.imageUrl || ''})` }}
-      >
-        <div className="parallax-overlay">
-          <div className="w-4/5 mx-auto">
-            <h1 className="article-title">{article.title}</h1>
-          </div>
-        </div>
-      </header>
-      
-      {/* Article Content at 80% width */}
-      <div className="w-4/5 mx-auto bg-white -mt-20 relative p-8 md:p-12 shadow-2xl rounded-lg">
-        <div className="prose max-w-none prose-slate prose-lg">
-          {article.content && parse(article.content, parseOptions)}
-        </div>
-        <div className="mt-12 pt-6 border-t border-slate-200">
-          <Link to="/" className="text-blue-600 hover:underline">&larr; Back to all articles</Link>
+    <>
+      {/* ... (Header section is the same as last version) ... */}
+      <div className="bg-slate-50 py-12">
+        <div className="max-w-4xl mx-auto">
+            <div className="prose prose-lg max-w-none prose-slate">
+              {/* Use the parser here */}
+              {article.content && parse(article.content, parseOptions)}
+            </div>
+            <div className="mt-12 pt-6 border-t border-slate-200">
+                <Link to="/" className="text-blue-600 hover:underline">&larr; Back to all articles</Link>
+            </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

@@ -2,116 +2,114 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 export const Header = () => (
-  <header className="bg-white shadow-sm border-b border-slate-200">
-    <div className="w-4/5 mx-auto py-4 px-8">
+  <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-50 border-b border-slate-200">
+    <div className="max-w-screen-xl mx-auto py-3 px-8 flex justify-between items-center">
       <Link to="/">
-        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">The Gaming Feed</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight hover:text-blue-600 transition-colors">The Gaming Feed</h1>
       </Link>
+      <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+        <Link to="/" className="hover:text-blue-600">Home</Link>
+        <a href="#" className="hover:text-blue-600">Reviews</a>
+        <a href="#" className="hover:text-blue-600">Videos</a>
+        <a href="#" className="hover:text-blue-600">About</a>
+      </nav>
     </div>
   </header>
 );
 
-export const HeroSection = ({ articles }) => {
-  if (!articles || articles.length < 3) return null;
-
-  return (
-    <section className="mb-12">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[500px]">
-        {/* Main Hero Article */}
-        <div className="lg:col-span-2 h-full">
-            <HeroArticleCard article={articles[0]} />
-        </div>
-        {/* Side Hero Articles */}
-        <div className="lg:col-span-1 h-full flex flex-col gap-6">
-            <div className="h-1/2">
-                <HeroArticleCard article={articles[1]} />
+export const HeroPost = ({ article }) => (
+    <div className="relative h-[60vh] rounded-2xl overflow-hidden mb-12 shadow-2xl">
+        <Link to={`/article/${article.id}`} className="absolute inset-0 group">
+            <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/20"></div>
+            <div className="absolute bottom-0 left-0 p-8 md:p-12">
+                <span className="text-sm font-bold bg-blue-500 text-white px-3 py-1 rounded-full mb-4 inline-block">{article.category}</span>
+                <h2 className="text-3xl md:text-5xl font-bold text-white leading-tight drop-shadow-lg">{article.title}</h2>
             </div>
-            <div className="h-1/2">
-                <HeroArticleCard article={articles[2]} />
+        </Link>
+    </div>
+);
+
+export const FeaturedGrid = ({ articles }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {articles.map(article => (
+            <div key={article.id} className="relative h-80 rounded-xl overflow-hidden shadow-lg group">
+                <Link to={`/article/${article.id}`} className="absolute inset-0">
+                    <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                    <div className="absolute bottom-0 left-0 p-4">
+                        <h3 className="text-lg font-bold text-white leading-tight drop-shadow-md">{article.title}</h3>
+                    </div>
+                </Link>
+            </div>
+        ))}
+    </div>
+);
+
+export const ArticleList = ({ articles }) => (
+    <div className="space-y-8">
+        {articles.map(article => (
+            <div key={article.id} className="grid grid-cols-1 md:grid-cols-3 gap-6 group">
+                <div className="md:col-span-1 rounded-lg overflow-hidden">
+                    <Link to={`/article/${article.id}`}>
+                        <img src={article.imageUrl} alt={article.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"/>
+                    </Link>
+                </div>
+                <div className="md:col-span-2">
+                    <span className="text-xs font-semibold text-blue-600 uppercase">{article.category}</span>
+                    <h2 className="text-2xl font-bold text-slate-800 mt-1 mb-2 group-hover:text-blue-600 transition-colors">
+                        <Link to={`/article/${article.id}`}>{article.title}</Link>
+                    </h2>
+                    <p className="text-slate-600 text-sm leading-relaxed">{article.contentSnippet}</p>
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+export const Sidebar = ({ popularArticles, categories, activeCategory, onCategorySelect }) => (
+    <aside className="sticky top-24 space-y-8">
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Most Read</h3>
+            <div className="space-y-4">
+                {popularArticles.map((article, index) => (
+                    <div key={article.id} className="flex items-start gap-4 group">
+                        <span className="text-3xl font-bold text-slate-300">0{index + 1}</span>
+                        <div>
+                            <h4 className="font-bold text-slate-700 leading-tight group-hover:text-blue-600 transition-colors">
+                                <Link to={`/article/${article.id}`}>{article.title}</Link>
+                            </h4>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
-      </div>
-    </section>
-  );
-};
-
-export const HeroArticleCard = ({ article }) => {
-  return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-lg group">
-      <Link to={`/article/${article.id}`} className="absolute inset-0">
-        <div className="absolute inset-0 bg-slate-200">
-          <img 
-            src={article.imageUrl || 'https://via.placeholder.com/800x600?text=Image+Not+Found'} 
-            alt={article.title} 
-            // Use object-contain to see the whole image; bg-slate-200 fills empty space
-            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
-          />
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Platforms</h3>
+            <div className="flex flex-col items-start gap-2">
+                <button 
+                    onClick={() => onCategorySelect('')}
+                    className={`font-semibold transition-colors ${!activeCategory ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
+                >
+                    All Platforms
+                </button>
+                {categories.map(category => (
+                     <button 
+                        key={category}
+                        onClick={() => onCategorySelect(category)}
+                        className={`font-semibold transition-colors ${activeCategory === category ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
+                    >
+                         {category}
+                    </button>
+                ))}
+            </div>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 p-6">
-          <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded-full mb-2 inline-block">{article.source}</span>
-          <h3 className="text-white text-2xl font-bold leading-tight drop-shadow-md">
-            {article.title}
-          </h3>
-        </div>
-      </Link>
-    </div>
-  );
-};
-
-export const Article = ({ article }) => {
-  return (
-    <article className="bg-white rounded-lg shadow-md border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden group">
-      <Link to={`/article/${article.id}`} className="block h-48 bg-slate-200">
-        <img 
-          src={article.imageUrl || 'https://via.placeholder.com/400x300?text=Image+Not+Found'} 
-          alt={article.title} 
-          // Use object-contain to see the whole image; bg-slate-200 fills empty space
-          className="w-full h-full object-contain" 
-          loading="lazy"
-        />
-      </Link>
-      <div className="p-6 flex-grow flex flex-col">
-        <h2 className="text-xl font-bold mb-2 text-slate-800 group-hover:text-blue-600 transition-colors">
-          <Link to={`/article/${article.id}`}>{article.title}</Link>
-        </h2>
-        <p className="text-slate-600 mb-4 flex-grow text-sm">{article.contentSnippet}</p>
-        <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap mt-auto pt-4 border-t border-slate-100">
-          <span className="font-semibold">{article.source}</span>
-          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md">{article.category}</span>
-        </div>
-      </div>
-    </article>
-  );
-};
-
-// New compact FilterBar component
-export const FilterBar = ({ searchTerm, onSearch, categories, sources, onCategoryChange, onSourceChange }) => (
-    <div className="mb-8 p-4 bg-slate-100 rounded-lg border border-slate-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
-                type="text"
-                placeholder="Search articles..."
-                value={searchTerm}
-                onChange={(e) => onSearch(e.target.value)}
-                className="md:col-span-1 w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition"
-            />
-            <select onChange={(e) => onCategoryChange(e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 transition">
-                <option value="">All Platforms</option>
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-            <select onChange={(e) => onSourceChange(e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 transition">
-                <option value="">All Sources</option>
-                {sources.map(src => <option key={src} value={src}>{src}</option>)}
-            </select>
-        </div>
-    </div>
+    </aside>
 );
 
 export const Error = ({ message }) => (
     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
-        <p className="font-bold">Error</p>
-        <p>{message}</p>
+        <p className="font-bold">Error</p><p>{message}</p>
     </div>
 );
 
