@@ -2,14 +2,16 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
-// Securely loads Firebase configuration from environment variables
-const firebaseConfig = JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG);
+// IMPORTANT: The configuration is now temporarily handled in App.js for debugging.
+// This file just initializes and exports the services.
 
-// Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+const firebaseConfig = JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG || '{}');
+
+// Initialize Firebase App only if config is present
+const app = firebaseConfig.apiKey ? initializeApp(firebaseConfig) : null;
 
 // Initialize and export services
-const db = getFirestore(app);
-const auth = getAuth(app);
+const db = app ? getFirestore(app) : null;
+const auth = app ? getAuth(app) : null;
 
-export { db, auth };
+export { db, auth, app };
