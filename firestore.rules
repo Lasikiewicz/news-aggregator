@@ -1,0 +1,14 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow public read access to the 'articles' collection
+    match /articles/{articleId} {
+      allow read: if true;
+      
+      // Deny all client-side write operations (create, update, delete)
+      allow write: if false;
+    }
+  }
+}
