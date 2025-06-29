@@ -6,13 +6,11 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// --- Environment Variable Check ---
 if (!process.env.GEMINI_API_KEY) {
     console.error("FATAL ERROR: GEMINI_API_KEY is not defined in your .env.local file.");
     process.exit(1);
 }
 
-// --- Firebase and RSS Parser Setup ---
 const serviceAccount = require('../serviceAccountKey.json');
 try {
   admin.initializeApp({
@@ -25,38 +23,20 @@ try {
 }
 const db = admin.firestore();
 const parser = new Parser();
-
-// --- AI Model Setup ---
 const AI_MODEL_NAME = "gemini-1.5-flash";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// --- Feed Configuration ---
 const feeds = [
     { url: '[https://blog.playstation.com/feed/](https://blog.playstation.com/feed/)', source: 'PlayStation Blog', category: 'PlayStation', articleSelector: '.entry-content', imageSelector: 'img' },
     { url: '[https://www.pushsquare.com/feeds/latest](https://www.pushsquare.com/feeds/latest)', source: 'Push Square', category: 'PlayStation', articleSelector: '.text', imageSelector: 'img' },
-    { url: '[https://www.gematsu.com/feed](https://www.gematsu.com/feed)', source: 'Gematsu', category: 'PlayStation', articleSelector: '.gematsu-post-content', imageSelector: 'img' },
-    { url: '[https://nichegamer.com/feed/](https://nichegamer.com/feed/)', source: 'Niche Gamer', category: 'PlayStation', articleSelector: '.entry-content', imageSelector: 'img' },
-    { url: '[https://www.playstationlifestyle.net/feed/](https://www.playstationlifestyle.net/feed/)', source: 'PlayStation LifeStyle', category: 'PlayStation', articleSelector: '.entry-content', imageSelector: 'img' },
     { url: '[https://news.xbox.com/en-us/feed/](https://news.xbox.com/en-us/feed/)', source: 'Xbox Wire', category: 'Xbox', articleSelector: '.entry-content', imageSelector: 'img' },
-    { url: '[https://majornelson.com/feed/](https://majornelson.com/feed/)', source: 'Major Nelson', category: 'Xbox', articleSelector: '.entry-content', imageSelector: 'img' },
     { url: '[https://www.purexbox.com/feeds/latest](https://www.purexbox.com/feeds/latest)', source: 'Pure Xbox', category: 'Xbox', articleSelector: '.text', imageSelector: 'img' },
-    { url: '[https://www.xboxachievements.com/news/rss/](https://www.xboxachievements.com/news/rss/)', source: 'Xbox Achievements', category: 'Xbox', articleSelector: '#news_body', imageSelector: 'img' },
-    { url: '[https://www.windowscentral.com/gaming/xbox/feed](https://www.windowscentral.com/gaming/xbox/feed)', source: 'Windows Central (Xbox)', category: 'Xbox', articleSelector: '#article-body', imageSelector: 'img' },
     { url: '[https://www.pcgamer.com/rss/](https://www.pcgamer.com/rss/)', source: 'PC Gamer', category: 'PC', articleSelector: '#article-body', imageSelector: 'img' },
     { url: '[https://www.rockpapershotgun.com/feed](https://www.rockpapershotgun.com/feed)', source: 'Rock Paper Shotgun', category: 'PC', articleSelector: '.article_body_content', imageSelector: 'img' },
-    { url: '[https://www.destructoid.com/feed/](https://www.destructoid.com/feed/)', source: 'Destructoid', category: 'PC', articleSelector: '.entry-content', imageSelector: 'img' },
-    { url: '[https://www.pcworld.com/feed/category/pc-gaming](https://www.pcworld.com/feed/category/pc-gaming)', source: 'PCWorld', category: 'PC', articleSelector: '.article-body', imageSelector: 'img' },
-    { url: '[https://techraptor.net/feed](https://techraptor.net/feed)', source: 'TechRaptor', category: 'PC', articleSelector: '.article-content', imageSelector: 'img' },
     { url: '[https://www.nintendolife.com/feeds/latest](https://www.nintendolife.com/feeds/latest)', source: 'Nintendo Life', category: 'Nintendo', articleSelector: '.text', imageSelector: 'img' },
     { url: '[https://gonintendo.com/feed](https://gonintendo.com/feed)', source: 'GoNintendo', category: 'Nintendo', articleSelector: '.post-content', imageSelector: 'img' },
-    { url: '[https://nintendoeverything.com/feed](https://nintendoeverything.com/feed)', source: 'Nintendo Everything', category: 'Nintendo', articleSelector: '.post-content', imageSelector: 'img' },
-    { url: '[https://www.siliconera.com/feed/](https://www.siliconera.com/feed/)', source: 'Siliconera', category: 'Nintendo', articleSelector: '.entry-content', imageSelector: 'img' },
-    { url: '[http://www.nintendoworldreport.com/rss.cfm](http://www.nintendoworldreport.com/rss.cfm)', source: 'Nintendo World Report', category: 'Nintendo', articleSelector: '.artbody', imageSelector: 'img' },
     { url: '[https://www.pocketgamer.com/rss/](https://www.pocketgamer.com/rss/)', source: 'Pocket Gamer', category: 'Mobile', articleSelector: '.acontent', imageSelector: 'img' },
-    { url: '[https://www.droidgamers.com/feed/](https://www.droidgamers.com/feed/)', source: 'Droid Gamers', category: 'Mobile', articleSelector: '.entry-content', imageSelector: 'img' },
     { url: '[https://toucharcade.com/feed](https://toucharcade.com/feed)', source: 'TouchArcade', category: 'Mobile', articleSelector: '.entry-content', imageSelector: 'img' },
-    { url: '[https://www.gamesindustry.biz/feed/news](https://www.gamesindustry.biz/feed/news)', source: 'GamesIndustry.biz', category: 'Mobile', articleSelector: '.article_body_content', imageSelector: 'figure.picture img' },
-    { url: '[https://blog.appmagic.rocks/s/feed](https://blog.appmagic.rocks/s/feed)', source: 'AppMagic', category: 'Mobile', articleSelector: '.post-content', imageSelector: 'img' },
 ];
 
 async function scrapeArticleContent(url, articleSelector, imageSelector) {
@@ -69,23 +49,16 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
         const imageUrls = new Set();
         articleBody.find(imageSelector).each((i, elem) => {
             const img = $(elem);
-            let src = img.attr('src');
+            let src = img.attr('data-src') || img.attr('src');
             const srcset = img.attr('srcset');
-            const dataSrc = img.attr('data-src');
-            let bestUrl = null;
-
-            if (dataSrc && dataSrc.startsWith('http')) bestUrl = dataSrc;
-            else if (srcset) {
-                const sources = srcset.split(',').map(s => {
-                    const parts = s.trim().split(/\s+/);
-                    return { url: parts[0], width: parseInt(parts[1], 10) || 0 };
-                });
-                const largestImage = sources.reduce((largest, current) => current.width > largest.width ? current : largest, { url: null, width: 0 });
-                if (largestImage.url && largestImage.url.startsWith('http')) bestUrl = largestImage.url;
-            } else if (src && src.startsWith('http')) bestUrl = src;
             
-            if (bestUrl && !bestUrl.includes('.svg') && !bestUrl.includes('avatar') && !bestUrl.includes('logo')) {
-                imageUrls.add(bestUrl);
+            if (srcset) {
+                const sources = srcset.split(',').map(s => s.trim().split(/\s+/)[0]);
+                src = sources[sources.length - 1]; // pick the highest res
+            }
+            
+            if (src && src.startsWith('http') && !src.includes('.svg') && !src.includes('avatar')) {
+                imageUrls.add(src);
             }
         });
         
@@ -98,25 +71,21 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
     }
 }
 
-async function rewriteArticleWithAI(text, imageUrls, title) {
-    if (!text) return null;
+async function processArticle(text, imageUrls) {
     const imageList = imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n');
-    
-    // NEW PROMPT: Now requests tags in a specific format.
     const prompt = `Act as a professional gaming journalist and web layout editor.
     TASK:
     1. Rewrite the following article text into an original, engaging blog post.
-    2. Intelligently embed all the provided image URLs into the article content using standard <img> tags with the class="article-image".
-    3. Generate a list of 5-7 relevant tags for the article.
+    2. Intelligently embed all the provided image URLs into the article content. Use standard <img> tags with class="article-image".
+    3. Generate a list of relevant tags for the article.
 
     RULES:
     1. The final output must be pure, well-structured HTML.
-    2. Do NOT use markdown. Do not wrap the output in \`\`\`html.
+    2. Do NOT use markdown. Do not wrap the output in \`\`\`html or end with \`\`\`.
     3. At the very end of your response, after all the HTML, add the tags formatted like this: ###TAGS### tag one, tag two, tag three ###/TAGS###
 
     PROVIDED IMAGE URLS:
     ${imageList}
-
     ARTICLE TEXT:
     "${text.substring(0, 5000)}"`;
 
@@ -125,10 +94,9 @@ async function rewriteArticleWithAI(text, imageUrls, title) {
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();
         
-        // Final cleanup for any stray markdown
-        responseText = responseText.replace(/^```(html)?\s*/, '').replace(/\s*```$/, '');
+        // Final, most robust cleanup for any stray markdown fences
+        responseText = responseText.replace(/^```(html)?/gm, '').replace(/```$/gm, '');
 
-        // Extract tags and content
         const tagRegex = /###TAGS###(.*?)###\/TAGS###/;
         const tagMatch = responseText.match(tagRegex);
         const tags = tagMatch ? tagMatch[1].split(',').map(tag => tag.trim()) : [];
@@ -159,10 +127,10 @@ async function main() {
                         console.log(`Skipped "${item.title}" due to no images found.`);
                         continue;
                     }
-                    const { content, tags } = await rewriteArticleWithAI(textContent, imageUrls, item.title);
-                    if (!content) continue;
+                    const processedData = await processArticle(textContent, imageUrls);
+                    if (!processedData || !processedData.content) continue;
                     
-                    const plainContent = content.replace(/<[^>]*>?/gm, '');
+                    const plainContent = processedData.content.replace(/<[^>]*>?/gm, '');
                     
                     await articlesRef.add({
                         title: item.title || 'No Title',
@@ -171,9 +139,9 @@ async function main() {
                         source: feedConfig.source,
                         category: feedConfig.category,
                         imageUrl: imageUrls[0],
-                        content: content,
+                        content: processedData.content,
+                        tags: processedData.tags,
                         contentSnippet: plainContent.substring(0, 150) + '...',
-                        tags: tags || [], // Store tags in Firestore
                     });
                     console.log(`Successfully added AI-rewritten article: "${item.title}"`);
                 } else {
