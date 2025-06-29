@@ -11,10 +11,8 @@ export const ArticlePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // This function handles the replacement of our custom image tags
   const parseOptions = {
     replace: (domNode) => {
-      // Find the special full-width parallax image
       if (domNode.attribs && domNode.attribs.class === 'full-width-parallax') {
         return (
           <div 
@@ -23,7 +21,6 @@ export const ArticlePage = () => {
           ></div>
         );
       }
-      // Find image galleries
       if (domNode.attribs && domNode.attribs.class === 'image-gallery') {
         const images = domToReact(domNode.children).filter(child => child.type === 'img');
         return <ImageGallery images={images} />;
