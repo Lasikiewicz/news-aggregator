@@ -1,16 +1,18 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
 
-// Securely loads Firebase configuration from environment variables.
-// This is the correct way for production builds.
-const firebaseConfig = JSON.parse(process.env.REACT_APP_FIREBASE_CONFIG);
+// Final, production-ready configuration.
+// It is still recommended to move this to environment variables.
+const firebaseConfig = {
+  apiKey: "AIzaSyC9a6aUzhAsxAePaa0iucLFXhZfq1WqyiM",
+  authDomain: "my-news-aggregator-eaebc.firebaseapp.com",
+  projectId: "my-news-aggregator-eaebc",
+  storageBucket: "my-news-aggregator-eaebc.firebasestorage.app",
+  messagingSenderId: "515347152406",
+  appId: "1:515347152406:web:26015f1437b5539f0fff37"
+};
 
-// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
-
-// Initialize and export services
 const db = getFirestore(app);
-const auth = getAuth(app);
 
-export { db, auth, app };
+export { db };

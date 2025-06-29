@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from './firebase';
-import { useAuth } from './AuthContext';
+import { db } from './firebase'; // Auth is no longer imported
 import { Header, Article, Search, Filters, Error, Loading } from './components';
 import { filterArticles } from './utils';
 
@@ -14,18 +13,14 @@ function App() {
   const [category, setCategory] = useState('');
   const [source, setSource] = useState('');
   const [type, setType] = useState('');
-  const { currentUser } = useAuth();
 
+  // This useEffect now runs once when the app mounts, without waiting for a user.
   useEffect(() => {
-    // We will still wait for authentication to be resolved before fetching
-    if (!currentUser) {
-      // If auth is still initializing, we show the loader.
-      // If it fails, the AuthContext will log an error.
-      return;
-    }
-
+    console.log('App mounted. Attaching Firestore listener...');
+    
     const q = query(collection(db, "articles"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        console.log(`Firestore snapshot. Docs found: ${querySnapshot.size}`);
         const fetchedArticles = querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
@@ -39,12 +34,15 @@ function App() {
         setLoading(false);
     }, (err) => {
         console.error("Firestore Snapshot Error:", err);
-        setError(`Firestore Error: ${err.message}`);
+        setError(`Firestore Error: ${err.message}. Check browser console.`);
         setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [currentUser]); // The fetch is dependent on currentUser being ready.
+    return () => {
+        console.log('Cleaning up Firestore listener.');
+        unsubscribe();
+    };
+  }, []); // Empty dependency array ensures this runs only once.
 
   useEffect(() => {
     const filtered = filterArticles(articles, searchTerm, category, source, type);
