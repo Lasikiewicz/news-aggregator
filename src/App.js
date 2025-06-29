@@ -13,11 +13,12 @@ const AppContent = () => {
   const [articles, setArticles] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  
+
   // All filters are now driven by URL Search Params for shareable links
   const [searchParams, setSearchParams] = useSearchParams();
   const activeCategory = searchParams.get('category') || 'All';
   const activeSubCategory = searchParams.get('subCategory');
+  const activeTag = searchParams.get('tag');
 
   useEffect(() => {
     const q = query(collection(db, "articles"), orderBy("published", "desc"));
@@ -34,13 +35,25 @@ const AppContent = () => {
 
   // Memoized calculations for categories and sub-categories
   const categories = useMemo(() => ['All', ...new Set(articles.map(a => a.category))], [articles]);
-  
+
   const subCategories = useMemo(() => {
     if (activeCategory === 'All') return [];
     return [...new Set(articles
         .filter(a => a.category === activeCategory && a.subCategory)
         .map(a => a.subCategory))]
   }, [articles, activeCategory]);
+
+  const allTags = useMemo(() => {
+    const tagCounts = articles.reduce((acc, article) => {
+      if (article.tags) {
+        article.tags.forEach(tag => {
+          acc[tag] = (acc[tag] || 0) + 1;
+        });
+      }
+      return acc;
+    }, {});
+    return Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).map(entry => entry[0]);
+  }, [articles]);
 
   // Filter articles based on the active URL params
   const filteredArticles = useMemo(() => {
@@ -51,15 +64,18 @@ const AppContent = () => {
     if (activeSubCategory) {
         result = result.filter(a => a.subCategory === activeSubCategory);
     }
+    if (activeTag) {
+        result = result.filter(a => a.tags && a.tags.includes(activeTag));
+    }
     return result;
-  }, [articles, activeCategory, activeSubCategory]);
-  
+  }, [articles, activeCategory, activeSubCategory, activeTag]);
+
   // Handlers to update the URL search params, which triggers a re-render
   const handleCategorySelect = (category) => {
       const newParams = category === 'All' ? {} : { category };
       setSearchParams(newParams);
   };
-  
+
   const handleSubCategorySelect = (subCategory) => {
     const params = new URLSearchParams(searchParams);
     if(subCategory) {
@@ -68,7 +84,15 @@ const AppContent = () => {
         params.delete('subCategory');
     }
     setSearchParams(params);
-  }
+  };
+
+  const handleTagSelect = (tag) => {
+    const params = new URLSearchParams();
+    if (tag) {
+      params.set('tag', tag);
+    }
+    setSearchParams(params);
+  };
 
   // The main page content
   const HomePage = () => {
@@ -83,13 +107,13 @@ const AppContent = () => {
     return (
       <div className="w-full max-w-screen-xl mx-auto">
         <Hero articles={heroArticles} />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
             <div className="lg:col-span-3">
                 <LeftSidebar trending={trendingArticles} topStories={topStories} />
             </div>
             <div className="lg:col-span-6">
                  <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b-2 border-slate-200 pb-2">
-                    {activeSubCategory || activeCategory} News
+                    {activeTag || activeSubCategory || activeCategory} News
                 </h2>
                  <ArticleList articles={mainArticles} />
             </div>
@@ -98,17 +122,20 @@ const AppContent = () => {
                     categories={categories}
                     activeCategory={activeCategory}
                     onCategorySelect={handleCategorySelect}
+                    tags={allTags}
+                    onTagSelect={handleTagSelect}
+                    activeTag={activeTag}
                  />
             </div>
         </div>
       </div>
     );
   };
-    
+
   return (
     <div className="bg-slate-100 min-h-screen font-sans">
-      <Header 
-          categories={categories} 
+      <Header
+          categories={categories}
           activeCategory={activeCategory}
           onCategorySelect={handleCategorySelect}
           subCategories={subCategories}

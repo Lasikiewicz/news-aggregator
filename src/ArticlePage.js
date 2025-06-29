@@ -48,7 +48,7 @@ export const ArticlePage = () => {
             <p className="text-sm font-bold text-blue-600 uppercase mb-2">{article.category}</p>
             <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 leading-tight">{article.title}</h1>
             <p className="text-slate-500 mt-4">
-                By <span className="font-semibold text-slate-700">Gilga</span> on {article.published.toLocaleDateString()}
+                By <span className="font-semibold text-slate-700">Gilga</span> on {article.published.toLocaleString()}
             </p>
         </div>
         <img src={article.imageUrl} alt={article.title} className="w-full rounded-xl shadow-lg mb-12" />
@@ -68,14 +68,14 @@ export const ArticlePage = () => {
                     <h3 className="text-lg font-semibold text-slate-800 mb-4">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                         {article.tags.map(tag => (
-                            <Link to={`/news-aggregator/?tag=${encodeURIComponent(tag)}`} key={tag} className="bg-slate-100 text-slate-700 text-sm font-medium px-3 py-1 rounded-full hover:bg-slate-200 transition-colors">
+                            <Link to={`/?tag=${encodeURIComponent(tag)}`} key={tag} className="bg-slate-100 text-slate-700 text-sm font-medium px-3 py-1 rounded-full hover:bg-slate-200 transition-colors">
                                 {tag}
                             </Link>
                         ))}
                     </div>
                 </div>
             )}
-             <Link to="/news-aggregator/" className="text-blue-600 hover:underline">&larr; Back to all articles</Link>
+             <Link to="/" className="text-blue-600 hover:underline">&larr; Back to all articles</Link>
         </div>
       </main>
     </div>

@@ -51,7 +51,7 @@ export const Hero = ({ articles }) => {
     const otherArticles = articles.filter(a => a.id !== activeArticle.id).slice(0, 4);
 
     return (
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[50vh] mt-4">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[50vh]">
             <div className="lg:col-span-2 relative h-full rounded-2xl overflow-hidden shadow-xl group">
                 <Link to={`/article/${activeArticle.id}`} className="absolute inset-0">
                     <img src={activeArticle.imageUrl} alt={activeArticle.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"/>
@@ -59,7 +59,7 @@ export const Hero = ({ articles }) => {
                     <div className="absolute bottom-0 left-0 p-8">
                         <span className="text-sm font-bold bg-blue-500 text-white px-3 py-1 rounded-full mb-4 inline-block">{activeArticle.category}</span>
                         <h2 className="text-3xl font-bold text-white leading-tight drop-shadow-lg">{activeArticle.title}</h2>
-                        {activeArticle.published && <p className="text-slate-200 mt-2 text-sm">{new Date(activeArticle.published.toDate()).toLocaleDateString()}</p>}
+                        {activeArticle.published && <p className="text-slate-200 mt-2 text-sm">{new Date(activeArticle.published.toDate()).toLocaleString()}</p>}
                     </div>
                 </Link>
             </div>
@@ -93,7 +93,7 @@ export const ArticleList = ({ articles }) => (
                         <Link to={`/article/${article.id}`}>{article.title}</Link>
                     </h2>
                     <p className="text-slate-600 text-sm leading-relaxed mb-3">{article.contentSnippet}</p>
-                    {article.published && <p className="text-xs text-slate-400">{new Date(article.published.toDate()).toLocaleDateString()}</p>}
+                    {article.published && <p className="text-xs text-slate-400">{new Date(article.published.toDate()).toLocaleString()}</p>}
                 </div>
             </div>
         ))}
@@ -137,24 +137,38 @@ export const LeftSidebar = ({ trending, topStories }) => (
     </aside>
 );
 
-export const RightSidebar = ({ categories, activeCategory, onCategorySelect }) => (
+export const RightSidebar = ({ categories, activeCategory, onCategorySelect, tags, onTagSelect, activeTag }) => (
     <aside className="sticky top-24 space-y-8 hidden lg:block">
         <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
             <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Platforms</h3>
             <div className="flex flex-col items-start gap-2">
-                <button 
+                <button
                     onClick={() => onCategorySelect('All')}
-                    className={`font-semibold transition-colors ${activeCategory === 'All' ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
+                    className={`font-semibold transition-colors ${activeCategory === 'All' && !activeTag ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
                 >
                     All Platforms
                 </button>
                 {categories.filter(c => c !== 'All').map(category => (
-                     <button 
+                     <button
                         key={category}
                         onClick={() => onCategorySelect(category)}
-                        className={`font-semibold transition-colors ${activeCategory === category ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
+                        className={`font-semibold transition-colors ${activeCategory === category && !activeTag ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'}`}
                     >
                          {category}
+                    </button>
+                ))}
+            </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">Tag Cloud</h3>
+            <div className="flex flex-wrap gap-2">
+                {tags.slice(0, 20).map(tag => (
+                    <button
+                        key={tag}
+                        onClick={() => onTagSelect(tag)}
+                        className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${activeTag === tag ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                    >
+                        {tag}
                     </button>
                 ))}
             </div>
