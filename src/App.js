@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Header, Article, Search, Filters, Error, Loading } from './components';
+import { Header, Article, Search, Filters, Error, Loading, LayoutToggle } from './components';
 import { filterArticles } from './utils';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ArticlePage } from './ArticlePage';
@@ -15,21 +15,16 @@ function App() {
   const [category, setCategory] = useState('');
   const [source, setSource] = useState('');
   const [type, setType] = useState('');
+  const [layout, setLayout] = useState('list'); // 'list' or 'grid'
 
   useEffect(() => {
-    console.log('App mounted. Attaching Firestore listener...');
-    
-    const q = query(collection(db, "articles"));
+    const q = query(collection(db, "articles"), orderBy("published", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        console.log(`Firestore snapshot. Docs found: ${querySnapshot.size}`);
         const fetchedArticles = querySnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
             published: doc.data().published?.toDate() || new Date(0),
         }));
-
-        fetchedArticles.sort((a, b) => b.published.getTime() - a.published.getTime());
-
         setArticles(fetchedArticles);
         setError('');
         setLoading(false);
@@ -39,10 +34,7 @@ function App() {
         setLoading(false);
     });
 
-    return () => {
-        console.log('Cleaning up Firestore listener.');
-        unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -57,29 +49,34 @@ function App() {
   const renderContent = () => {
     if (loading) return <Loading />;
     if (error) return <Error message={error} />;
-    if (articles.length === 0 && !loading) {
+    if (filteredArticles.length === 0) {
       return (
-        <div className="text-center text-slate-500 p-8 bg-white rounded-lg shadow-sm">
-          <h3 className="text-lg font-semibold mb-2">No Articles Found</h3>
-          <p>The backend script might still be populating the database. Articles will appear here shortly.</p>
+        <div className="text-center text-slate-500 p-8">
+            <h3 className="text-lg font-semibold mb-2">No Articles Found</h3>
+            <p>Either there are no articles matching your filters, or the database is still being populated.</p>
         </div>
       );
     }
-    if (filteredArticles.length === 0 && articles.length > 0) {
-      return <p className="text-center text-slate-500 p-8">No articles match your filters.</p>;
-    }
+    
+    // Conditional classes for layout
+    const layoutClasses = {
+        list: "space-y-6",
+        grid: "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+    };
+
     return (
-      <div className="space-y-6">
-        {filteredArticles.map((article) => <Article key={article.id} article={article} />)}
+      <div className={layoutClasses[layout]}>
+        {filteredArticles.map((article) => <Article key={article.id} article={article} layout={layout} />)}
       </div>
     );
   }
   
   const HomePage = () => (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+    <div className="max-w-7xl mx-auto">
+      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
         <Search searchTerm={searchTerm} onSearch={setSearchTerm} />
         <Filters categories={allCategories} sources={allSources} types={allTypes} onCategoryChange={setCategory} onSourceChange={setSource} onTypeChange={setType} />
+        <LayoutToggle layout={layout} onLayoutChange={setLayout} />
       </div>
       {renderContent()}
     </div>

@@ -18,20 +18,32 @@ const parser = new Parser();
 const AI_MODEL_NAME = "gemini-1.5-flash"; // A powerful and fast model
 
 // --- Feed Configuration ---
+// NOTE: Website layouts change. These CSS selectors for scraping might need periodic updates.
 const feeds = [
     { url: 'https://blog.playstation.com/feed/', source: 'PlayStation Blog', category: 'PlayStation', articleSelector: '.entry-content', imageSelector: '.featured-asset-thumbnail img' },
     { url: 'https://www.pushsquare.com/feeds/latest', source: 'Push Square', category: 'PlayStation', articleSelector: '.text', imageSelector: '.img' },
     { url: 'https://news.xbox.com/en-us/feed/', source: 'Xbox Wire', category: 'Xbox', articleSelector: '.entry-content', imageSelector: 'article .wp-post-image' },
-    { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer', category: 'PC', articleSelector: '#article-body', imageSelector: '#article-body figure img' },
+    { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer', category: 'PC', articleSelector: '#article-body', imageSelector: 'figure.frame-default img' },
     { url: 'https://www.rockpapershotgun.com/feed', source: 'Rock Paper Shotgun', category: 'PC', articleSelector: '.article_body_content', imageSelector: '.article_image_wrapper img' },
     { url: 'https://toucharcade.com/feed', source: 'TouchArcade', category: 'Mobile', articleSelector: '.entry-content', imageSelector: '.entry-content img' },
     { url: 'https://www.droidgamers.com/feed/', source: 'Droid Gamers', category: 'Mobile', articleSelector: '.entry-content', imageSelector: '.entry-content img' },
     { url: 'http://www.pocketgamer.biz/rss/', source: 'PocketGamer.biz', category: 'Mobile', articleSelector: '.acontent', imageSelector: '.acontent img' }
 ];
 
+
+/**
+ * Strips HTML tags from a string.
+ * @param {string} html - The HTML string.
+ * @returns {string} The plain text.
+ */
+function stripHtml(html) {
+    if(!html) return '';
+    return html.replace(/<[^>]*>?/gm, '');
+}
+
+
 /**
  * Fetches the HTML of a webpage and extracts the main article text and a hero image.
- * Note: This is highly dependent on the website's structure and may break if they change it.
  * @param {string} url - The URL of the article to scrape.
  * @param {string} articleSelector - The CSS selector for the main article content container.
  * @param {string} imageSelector - The CSS selector for the main article image.
@@ -73,8 +85,6 @@ async function rewriteArticleWithAI(text) {
     Original Text: "${text.substring(0, 8000)}"`; // Limit text to avoid exceeding token limits
 
     try {
-        // NOTE: This assumes you are running in an environment where the Gemini API key is available.
-        // In GitHub Actions, you will need to set up a secret for this.
         const model = getGenerativeModel({ model: AI_MODEL_NAME });
         const result = await model.generateContent(prompt);
         const response = result.response;
@@ -95,7 +105,6 @@ async function main() {
             console.log(`\n--- Processing Feed: ${feedConfig.source} ---`);
             const feed = await parser.parseURL(feedConfig.url);
             
-            // Limit to the latest 5 articles per feed
             const latestItems = feed.items.slice(0, 5);
 
             for (const item of latestItems) {
@@ -110,15 +119,16 @@ async function main() {
                 if (querySnapshot.empty) {
                     console.log(`Processing new article: "${item.title}"`);
 
-                    // 1. Scrape original content
                     const { textContent, imageUrl } = await scrapeArticleContent(item.link, feedConfig.articleSelector, feedConfig.imageSelector);
                     if (!textContent) continue;
 
-                    // 2. Rewrite with AI
                     const rewrittenContent = await rewriteArticleWithAI(textContent);
                     if (!rewrittenContent) continue;
 
-                    // 3. Prepare new article document for Firestore
+                    // Create a plain text snippet for previews
+                    const plainContent = stripHtml(rewrittenContent);
+                    const contentSnippet = plainContent.substring(0, 150) + '...';
+
                     const newArticle = {
                         title: item.title || 'No Title',
                         link: item.link,
@@ -127,7 +137,8 @@ async function main() {
                         category: feedConfig.category,
                         type: feedConfig.type || null,
                         imageUrl: imageUrl || null,
-                        content: rewrittenContent, // The new AI-generated HTML content
+                        content: rewrittenContent,
+                        contentSnippet: contentSnippet, // Add the snippet here
                     };
 
                     await articlesRef.add(newArticle);
