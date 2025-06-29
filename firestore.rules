@@ -2,12 +2,13 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: TEMPORARY DIAGNOSTIC RULE - NOT SECURE FOR PRODUCTION
-    // This rule allows anyone to read any document in your database.
-    // This is ONLY to test if data fetching works without authentication.
-    match /{document=**} {
+
+    // Allow public read access to the 'articles' collection
+    match /articles/{articleId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if false; // No one can write from the website
     }
+
+    // You could add rules for other collections here if needed
   }
 }
