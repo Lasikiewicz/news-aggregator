@@ -86,7 +86,7 @@ function App() {
   );
 
   return (
-    <Router>
+    <Router basename="/news-aggregator">
       <div className="bg-slate-50 min-h-screen font-sans">
         <Header />
         <main className="p-4 md:p-8">
