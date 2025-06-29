@@ -51,7 +51,6 @@ export const ArticlePage = () => {
                 By <span className="font-semibold text-slate-700">Gilga</span> on {article.published.toLocaleString()}
             </p>
         </div>
-        <img src={article.imageUrl} alt={article.title} className="w-full rounded-xl shadow-lg mb-12" />
         <div className="flex gap-12">
             <aside className="w-20 hidden md:block">
                 <div className="sticky top-28">

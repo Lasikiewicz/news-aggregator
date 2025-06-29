@@ -90,17 +90,20 @@ const fetchFeeds = async () => {
                     continue;
                 }
 
-                // ### THIS IS THE ONLY LINE THAT HAS CHANGED ###
                 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
                 const prompt = `
-                    1. Rewrite the following article text into an original, engaging blog post. The tone should be neutral and informative.
-                    2. Generate a list of relevant tags for the article (e.g., "Xbox", "Gamepass", "RPG").
-                    3. Generate a sub-category for the article (e.g., "Gamepass", "Hardware", "PS5").
-                    4. Output the result as a JSON object with keys: "content", "tags", "subCategory". Do not include any other text or markdown formatting in your response.
+                    1. Rewrite the following article text into an original, engaging blog post, formatted in HTML. Use tags like <p>, <h2>, <h3>, <ul>, and <li> for structure. The tone should be neutral and informative.
+                    2. In the generated HTML, include the provided image URL at a suitable point in the article, using an <img> tag with a "style" attribute for basic responsiveness (e.g., style="width: 100%; height: auto; border-radius: 0.75rem;").
+                    3. Generate a list of relevant tags for the article (e.g., "Xbox", "Gamepass", "RPG").
+                    4. Generate a sub-category for the article (e.g., "Gamepass", "Hardware", "PS5").
+                    5. Output the result as a JSON object with keys: "content", "tags", "subCategory". Do not include any other text or markdown formatting in your response.
                     
                     Article Text:
                     ${item.title}\n\n${item.contentSnippet || ''}
+
+                    Image URL:
+                    ${imageUrl}
                 `;
 
                 try {
@@ -127,7 +130,7 @@ const fetchFeeds = async () => {
                     };
 
                     await articlesRef.add(newArticle);
-console.log(`>>> Successfully added article: ${item.title}`);
+                    console.log(`>>> Successfully added article: ${item.title}`);
                 } catch (aiError) {
                     console.error(`AI generation or JSON parsing failed for "${item.title}":`, aiError.message);
                 }
