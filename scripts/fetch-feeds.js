@@ -32,16 +32,16 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // --- Feed Configuration ---
 const feeds = [
-    { url: '[https://blog.playstation.com/feed/](https://blog.playstation.com/feed/)', source: 'PlayStation Blog', category: 'PlayStation', articleSelector: '.entry-content', imageSelector: 'img' },
-    { url: '[https://www.pushsquare.com/feeds/latest](https://www.pushsquare.com/feeds/latest)', source: 'Push Square', category: 'PlayStation', articleSelector: '.text', imageSelector: 'img' },
-    { url: '[https://news.xbox.com/en-us/feed/](https://news.xbox.com/en-us/feed/)', source: 'Xbox Wire', category: 'Xbox', articleSelector: '.entry-content', imageSelector: 'img' },
-    { url: '[https://www.purexbox.com/feeds/latest](https://www.purexbox.com/feeds/latest)', source: 'Pure Xbox', category: 'Xbox', articleSelector: '.text', imageSelector: 'img' },
-    { url: '[https://www.pcgamer.com/rss/](https://www.pcgamer.com/rss/)', source: 'PC Gamer', category: 'PC', articleSelector: '#article-body', imageSelector: 'img' },
-    { url: '[https://www.rockpapershotgun.com/feed](https://www.rockpapershotgun.com/feed)', source: 'Rock Paper Shotgun', category: 'PC', articleSelector: '.article_body_content', imageSelector: 'img' },
-    { url: '[https://www.nintendolife.com/feeds/latest](https://www.nintendolife.com/feeds/latest)', source: 'Nintendo Life', category: 'Nintendo', articleSelector: '.text', imageSelector: 'img' },
-    { url: '[https://gonintendo.com/feed](https://gonintendo.com/feed)', source: 'GoNintendo', category: 'Nintendo', articleSelector: '.post-content', imageSelector: 'img' },
-    { url: '[https://www.pocketgamer.com/rss/](https://www.pocketgamer.com/rss/)', source: 'Pocket Gamer', category: 'Mobile', articleSelector: '.acontent', imageSelector: 'img' },
-    { url: '[https://toucharcade.com/feed](https://toucharcade.com/feed)', source: 'TouchArcade', category: 'Mobile', articleSelector: '.entry-content', imageSelector: 'img' },
+    { url: 'https://blog.playstation.com/feed/', source: 'PlayStation Blog', category: 'PlayStation', articleSelector: '.entry-content', imageSelector: 'img' },
+    { url: 'https://www.pushsquare.com/feeds/latest', source: 'Push Square', category: 'PlayStation', articleSelector: '.text', imageSelector: 'img' },
+    { url: 'https://news.xbox.com/en-us/feed/', source: 'Xbox Wire', category: 'Xbox', articleSelector: '.entry-content', imageSelector: 'img' },
+    { url: 'https://www.purexbox.com/feeds/latest', source: 'Pure Xbox', category: 'Xbox', articleSelector: '.text', imageSelector: 'img' },
+    { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer', category: 'PC', articleSelector: '#article-body', imageSelector: 'img' },
+    { url: 'https://www.rockpapershotgun.com/feed', source: 'Rock Paper Shotgun', category: 'PC', articleSelector: '.article_body_content', imageSelector: 'img' },
+    { url: 'https://www.nintendolife.com/feeds/latest', source: 'Nintendo Life', category: 'Nintendo', articleSelector: '.text', imageSelector: 'img' },
+    { url: 'https://gonintendo.com/feed', source: 'GoNintendo', category: 'Nintendo', articleSelector: '.post-content', imageSelector: 'img' },
+    { url: 'https://www.pocketgamer.com/rss/', source: 'Pocket Gamer', category: 'Mobile', articleSelector: '.acontent', imageSelector: 'img' },
+    { url: 'https://toucharcade.com/feed', source: 'TouchArcade', category: 'Mobile', articleSelector: '.entry-content', imageSelector: 'img' },
 ];
 
 async function scrapeArticleContent(url, articleSelector, imageSelector) {
@@ -63,7 +63,7 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
             
             if (srcset) {
                 const sources = srcset.split(',').map(s => s.trim().split(/\s+/)[0]);
-                src = sources[sources.length - 1];
+                src = sources[sources.length - 1]; // pick the highest res
             }
             
             if (src && src.startsWith('http') && !src.includes('.svg') && !src.includes('avatar')) {
@@ -75,6 +75,7 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
         const textContent = articleBody.text().trim().replace(/\s\s+/g, ' ');
         return { textContent, imageUrls: Array.from(imageUrls) };
     } catch (error) {
+        // We will log the error, but the script will continue with other feeds.
         console.error(`Scraping failed for ${url}: ${error.message}`);
         return { textContent: null, imageUrls: [] };
     }
@@ -103,7 +104,6 @@ async function processArticle(text, imageUrls) {
         const result = await model.generateContent(prompt);
         let responseText = result.response.text().trim();
         
-        // ---BUG FIX--- More robust cleanup for any stray markdown fences
         responseText = responseText.replace(/^```(html)?/gm, '').replace(/```$/gm, '').trim();
 
         const tagRegex = /###TAGS###(.*?)###\/TAGS###/;
