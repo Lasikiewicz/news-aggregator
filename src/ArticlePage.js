@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Loading, Error, SocialShare, ImageGallery } from './components';
+import { Loading, Error, SocialShare } from './components';
 
 export const ArticlePage = () => {
   const { articleId } = useParams();
