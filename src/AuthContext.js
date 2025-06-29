@@ -10,20 +10,19 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
 
+  // This effect will run in the background and not block the app.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
+        console.log('Auth: User is signed in anonymously.');
       } else {
-        signInAnonymously(auth).catch(error => {
-          console.error("Anonymous sign-in failed:", error);
+        signInAnonymously(auth).catch((error) => {
+          console.error('Auth: Anonymous sign-in failed, but app will proceed with public data.', error.message);
         });
       }
-      setLoading(false);
     });
-
     return unsubscribe;
   }, []);
 
@@ -31,7 +30,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
