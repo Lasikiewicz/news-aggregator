@@ -1,3 +1,55 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Add these new styles for the parallax header and image placeholders */
+
+.parallax-header {
+  height: 60vh;
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  position: relative;
+}
+
+.parallax-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.article-title {
+  color: white;
+  font-size: 3rem; /* 48px */
+  font-weight: 700;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+  padding: 0 1rem;
+}
+
+.image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.5rem; /* 8px */
+  padding: 3rem 1.5rem; /* 48px 24px */
+  border: 2px dashed #cbd5e1; /* cool-gray-300 */
+  border-radius: 0.5rem; /* 8px */
+  background-color: #f1f5f9; /* cool-gray-100 */
+  text-align: center;
+  color: #475569; /* cool-gray-600 */
+}
+
+.placeholder-icon {
+  font-size: 2.25rem; /* 36px */
+}
+
+.placeholder-text {
+  font-style: italic;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}

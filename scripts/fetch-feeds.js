@@ -4,49 +4,44 @@ const admin = require('firebase-admin');
 const Parser = require('rss-parser');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { getGenerativeModel } = require('@google/generative-ai');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // --- Firebase and RSS Parser Setup ---
-const serviceAccount = require('../serviceAccountKey.json');
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+const serviceAccount = require('./serviceAccountKey.json');
+try {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+} catch (error) {
+  if (!/already exists/u.test(error.message)) {
+    console.error('Firebase admin initialization error', error.stack);
+  }
+}
 const db = admin.firestore();
 const parser = new Parser();
 
 // --- AI Model Setup ---
-const AI_MODEL_NAME = "gemini-1.5-flash"; // A powerful and fast model
+const AI_MODEL_NAME = "gemini-1.5-flash";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // --- Feed Configuration ---
-// NOTE: Website layouts change. These CSS selectors for scraping might need periodic updates.
+// The feeds array now only contains GamesIndustry.biz
 const feeds = [
-    { url: 'https://blog.playstation.com/feed/', source: 'PlayStation Blog', category: 'PlayStation', articleSelector: '.entry-content', imageSelector: '.featured-asset-thumbnail img' },
-    { url: 'https://www.pushsquare.com/feeds/latest', source: 'Push Square', category: 'PlayStation', articleSelector: '.text', imageSelector: '.img' },
-    { url: 'https://news.xbox.com/en-us/feed/', source: 'Xbox Wire', category: 'Xbox', articleSelector: '.entry-content', imageSelector: 'article .wp-post-image' },
-    { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer', category: 'PC', articleSelector: '#article-body', imageSelector: 'figure.frame-default img' },
-    { url: 'https://www.rockpapershotgun.com/feed', source: 'Rock Paper Shotgun', category: 'PC', articleSelector: '.article_body_content', imageSelector: '.article_image_wrapper img' },
-    { url: 'https://toucharcade.com/feed', source: 'TouchArcade', category: 'Mobile', articleSelector: '.entry-content', imageSelector: '.entry-content img' },
-    { url: 'https://www.droidgamers.com/feed/', source: 'Droid Gamers', category: 'Mobile', articleSelector: '.entry-content', imageSelector: '.entry-content img' },
-    { url: 'http://www.pocketgamer.biz/rss/', source: 'PocketGamer.biz', category: 'Mobile', articleSelector: '.acontent', imageSelector: '.acontent img' }
+    { 
+        url: 'https://www.gamesindustry.biz/feed/news', 
+        source: 'GamesIndustry.biz', 
+        category: 'Industry News', 
+        articleSelector: '.article_body_content', 
+        imageSelector: 'figure.picture img' 
+    }
 ];
 
-
 /**
- * Strips HTML tags from a string.
- * @param {string} html - The HTML string.
- * @returns {string} The plain text.
- */
-function stripHtml(html) {
-    if(!html) return '';
-    return html.replace(/<[^>]*>?/gm, '');
-}
-
-
-/**
- * Fetches the HTML of a webpage and extracts the main article text and a hero image.
+ * A more robust function to fetch article content and image.
+ * It first tries to find the Open Graph image and falls back to a CSS selector.
  * @param {string} url - The URL of the article to scrape.
  * @param {string} articleSelector - The CSS selector for the main article content container.
- * @param {string} imageSelector - The CSS selector for the main article image.
+ * @param {string} imageSelector - The fallback CSS selector for the main article image.
  * @returns {Promise<{textContent: string, imageUrl: string | null}>}
  */
 async function scrapeArticleContent(url, articleSelector, imageSelector) {
@@ -54,11 +49,17 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
         const { data: html } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const $ = cheerio.load(html);
 
-        // Remove unwanted elements like scripts, ads, related posts etc.
-        $(`${articleSelector} script, ${articleSelector} style, ${articleSelector} .related-posts, ${articleSelector} .ad-container`).remove();
-        
+        // 1. Prioritize Open Graph image tag for reliability
+        let imageUrl = $('meta[property="og:image"]').attr('content') || null;
+
+        // 2. If no OG image, fall back to the specific CSS selector
+        if (!imageUrl) {
+            imageUrl = $(imageSelector).first().attr('src') || null;
+        }
+
+        // 3. Scrape article text
+        $(`${articleSelector} script, ${articleSelector} style`).remove();
         const textContent = $(articleSelector).text().trim().replace(/\s\s+/g, ' ');
-        const imageUrl = $(imageSelector).first().attr('src') || null;
 
         return { textContent, imageUrl };
     } catch (error) {
@@ -67,25 +68,22 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
     }
 }
 
-/**
- * Uses the Gemini API to rewrite article text.
- * @param {string} text - The original article text.
- * @returns {Promise<string | null>}
- */
 async function rewriteArticleWithAI(text) {
     if (!text || text.length < 100) {
         console.log('Text too short for AI rewrite, skipping.');
         return null;
     }
     
-    const prompt = `You are a professional gaming journalist with a casual, witty, and slightly comedic tone.
-    Rewrite the following article text into an engaging blog post. Ensure it is well-structured with paragraphs.
-    Do not use markdown like '#' for titles. The output should be pure HTML.
-    
-    Original Text: "${text.substring(0, 8000)}"`; // Limit text to avoid exceeding token limits
+    const prompt = `Act as a professional gaming journalist with a casual, witty, and comedic tone.
+    Based on the topic from the following article text, write an original, engaging blog post. Do not directly summarize or quote the text. Make it your own.
+    The output MUST be pure HTML.
+    Structure the article with paragraphs.
+    Crucially, break up the text by inserting placeholder divs for images where they would enhance the story. Use the format <div data-image-placeholder="A descriptive caption of the image that should be here"></div>. For example, if discussing a character, you might add: <div data-image-placeholder="Close-up screenshot of the character's new armor"></div>. Include at least two or three of these image placeholders.
+
+    Original Text Topic: "${text.substring(0, 6000)}"`;
 
     try {
-        const model = getGenerativeModel({ model: AI_MODEL_NAME });
+        const model = genAI.getGenerativeModel({ model: AI_MODEL_NAME });
         const result = await model.generateContent(prompt);
         const response = result.response;
         return response.text();
@@ -94,7 +92,6 @@ async function rewriteArticleWithAI(text) {
         return null;
     }
 }
-
 
 async function main() {
     console.log('Starting AI-powered feed fetch process...');
@@ -105,7 +102,7 @@ async function main() {
             console.log(`\n--- Processing Feed: ${feedConfig.source} ---`);
             const feed = await parser.parseURL(feedConfig.url);
             
-            const latestItems = feed.items.slice(0, 5);
+            const latestItems = feed.items.slice(0, 10); // Fetching 10 for a single source
 
             for (const item of latestItems) {
                 if (!item.link) {
@@ -118,15 +115,13 @@ async function main() {
 
                 if (querySnapshot.empty) {
                     console.log(`Processing new article: "${item.title}"`);
-
                     const { textContent, imageUrl } = await scrapeArticleContent(item.link, feedConfig.articleSelector, feedConfig.imageSelector);
                     if (!textContent) continue;
 
                     const rewrittenContent = await rewriteArticleWithAI(textContent);
                     if (!rewrittenContent) continue;
-
-                    // Create a plain text snippet for previews
-                    const plainContent = stripHtml(rewrittenContent);
+                    
+                    const plainContent = rewrittenContent.replace(/<[^>]*>?/gm, '');
                     const contentSnippet = plainContent.substring(0, 150) + '...';
 
                     const newArticle = {
@@ -135,15 +130,13 @@ async function main() {
                         published: item.isoDate ? admin.firestore.Timestamp.fromDate(new Date(item.isoDate)) : admin.firestore.Timestamp.now(),
                         source: feedConfig.source,
                         category: feedConfig.category,
-                        type: feedConfig.type || null,
-                        imageUrl: imageUrl || null,
+                        imageUrl: imageUrl,
                         content: rewrittenContent,
-                        contentSnippet: contentSnippet, // Add the snippet here
+                        contentSnippet: contentSnippet,
                     };
 
                     await articlesRef.add(newArticle);
                     console.log(`Successfully added AI-rewritten article: "${item.title}"`);
-
                 } else {
                     console.log(`Skipped existing article: "${item.title}"`);
                 }

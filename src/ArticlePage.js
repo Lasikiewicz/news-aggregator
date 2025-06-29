@@ -3,6 +3,24 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { Loading, Error } from './components';
+import parse, { domToReact } from 'html-react-parser';
+
+// A new component for the image placeholders
+const ImagePlaceholder = ({ caption }) => (
+  <div className="image-placeholder my-8">
+    <span className="placeholder-icon">🖼️</span>
+    <span className="placeholder-text">Image needed: "{caption}"</span>
+  </div>
+);
+
+// Options for the HTML parser to replace our custom divs
+const parseOptions = {
+  replace: domNode => {
+    if (domNode.attribs && domNode.attribs['data-image-placeholder']) {
+      return <ImagePlaceholder caption={domNode.attribs['data-image-placeholder']} />;
+    }
+  }
+};
 
 export const ArticlePage = () => {
   const { articleId } = useParams();
@@ -17,14 +35,9 @@ export const ArticlePage = () => {
       try {
         const docRef = doc(db, 'articles', articleId);
         const docSnap = await getDoc(docRef);
-
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setArticle({ 
-            id: docSnap.id, 
-            ...data,
-            published: data.published?.toDate() || new Date(0)
-          });
+          setArticle({ id: docSnap.id, ...data });
         } else {
           setError('Article not found.');
         }
@@ -34,39 +47,36 @@ export const ArticlePage = () => {
         setLoading(false);
       }
     };
-
     fetchArticle();
   }, [articleId]);
 
   if (loading) return <Loading />;
   if (error) return <Error message={error} />;
-  if (!article) return <div className="text-center p-8">No article data to display.</div>;
+  if (!article) return null;
 
   return (
-    <div className="max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-lg shadow-lg border border-slate-200">
-      <h1 className="text-3xl lg:text-4xl font-bold mb-4 text-slate-800 leading-tight">{article.title}</h1>
-      <div className="text-sm text-slate-500 mb-6 pb-6 border-b border-slate-200">
-        <span className="font-semibold">Source:</span> <a href={article.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{article.source}</a>
-        <span className="mx-2">|</span>
-        <span className="font-semibold">Published:</span> {article.published.toLocaleString()}
-      </div>
-      {article.imageUrl && (
-        <img 
-            src={article.imageUrl} 
-            alt={article.title} 
-            className="w-full h-auto mb-6 rounded-lg shadow-md" 
-        />
-      )}
+    <div className="article-container">
+      {/* Parallax Header */}
+      <header 
+        className="parallax-header"
+        style={{ backgroundImage: `url(${article.imageUrl || ''})` }}
+      >
+        <div className="parallax-overlay">
+          <div className="w-4/5 mx-auto">
+            <h1 className="article-title">{article.title}</h1>
+          </div>
+        </div>
+      </header>
       
-      {/* Ensure the 'prose' class from @tailwindcss/typography is applied for styling */}
-      <div 
-        className="prose max-w-none prose-slate" 
-        dangerouslySetInnerHTML={{ __html: article.content }} 
-      />
-
-       <div className="mt-8 pt-6 border-t border-slate-200">
+      {/* Article Content at 80% width */}
+      <div className="w-4/5 mx-auto bg-white -mt-20 relative p-8 md:p-12 shadow-2xl rounded-lg">
+        <div className="prose max-w-none prose-slate prose-lg">
+          {article.content && parse(article.content, parseOptions)}
+        </div>
+        <div className="mt-12 pt-6 border-t border-slate-200">
           <Link to="/" className="text-blue-600 hover:underline">&larr; Back to all articles</Link>
-       </div>
+        </div>
+      </div>
     </div>
   );
 };

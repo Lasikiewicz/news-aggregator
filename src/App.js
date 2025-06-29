@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
-import { Header, Article, Search, Filters, Error, Loading, LayoutToggle } from './components';
+import { Header, Article, FilterBar, Error, Loading, HeroSection } from './components';
 import { filterArticles } from './utils';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ArticlePage } from './ArticlePage';
 
 function App() {
   const [articles, setArticles] = useState([]);
-  const [filteredArticles, setFilteredArticles] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
   const [source, setSource] = useState('');
-  const [type, setType] = useState('');
-  const [layout, setLayout] = useState('list'); // 'list' or 'grid'
 
   useEffect(() => {
     const q = query(collection(db, "articles"), orderBy("published", "desc"));
@@ -33,60 +30,49 @@ function App() {
         setError(`Firestore Error: ${err.message}. Check browser console.`);
         setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const filtered = filterArticles(articles, searchTerm, category, source, type);
-    setFilteredArticles(filtered);
-  }, [searchTerm, category, source, type, articles]);
+  // Separate articles for hero and the main list
+  const heroArticles = articles.slice(0, 3);
+  const mainArticles = articles.slice(3);
 
-  const allCategories = [...new Set(articles.map(a => a.category).filter(Boolean))];
-  const allSources = [...new Set(articles.map(a => a.source).filter(Boolean))];
-  const allTypes = [...new Set(articles.map(a => a.type).filter(Boolean))];
+  // Apply filters only to the main list of articles
+  const filteredMainArticles = filterArticles(mainArticles, searchTerm, category, source, '');
+  
+  const allCategories = [...new Set(mainArticles.map(a => a.category).filter(Boolean))];
+  const allSources = [...new Set(mainArticles.map(a => a.source).filter(Boolean))];
 
-  const renderContent = () => {
+  const HomePage = () => {
     if (loading) return <Loading />;
     if (error) return <Error message={error} />;
-    if (filteredArticles.length === 0) {
-      return (
-        <div className="text-center text-slate-500 p-8">
-            <h3 className="text-lg font-semibold mb-2">No Articles Found</h3>
-            <p>Either there are no articles matching your filters, or the database is still being populated.</p>
-        </div>
-      );
-    }
-    
-    // Conditional classes for layout
-    const layoutClasses = {
-        list: "space-y-6",
-        grid: "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
-    };
 
     return (
-      <div className={layoutClasses[layout]}>
-        {filteredArticles.map((article) => <Article key={article.id} article={article} layout={layout} />)}
+      // Set main container to 80% width and centered
+      <div className="w-4/5 mx-auto">
+        <HeroSection articles={heroArticles} />
+        
+        <FilterBar 
+          searchTerm={searchTerm}
+          onSearch={setSearchTerm}
+          categories={allCategories}
+          sources={allSources}
+          onCategoryChange={setCategory}
+          onSourceChange={setSource}
+        />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          {filteredMainArticles.map((article) => <Article key={article.id} article={article} />)}
+        </div>
       </div>
     );
-  }
-  
-  const HomePage = () => (
-    <div className="max-w-7xl mx-auto">
-      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
-        <Search searchTerm={searchTerm} onSearch={setSearchTerm} />
-        <Filters categories={allCategories} sources={allSources} types={allTypes} onCategoryChange={setCategory} onSourceChange={setSource} onTypeChange={setType} />
-        <LayoutToggle layout={layout} onLayoutChange={setLayout} />
-      </div>
-      {renderContent()}
-    </div>
-  );
+  };
 
   return (
     <Router basename="/news-aggregator">
       <div className="bg-slate-50 min-h-screen font-sans">
         <Header />
-        <main className="p-4 md:p-8">
+        <main className="py-8">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/article/:articleId" element={<ArticlePage />} />
