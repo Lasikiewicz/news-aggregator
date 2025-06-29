@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Add this style to make the embedded images look good */
 .article-content img {
-  @apply rounded-lg shadow-xl my-8;
+  @apply rounded-lg shadow-xl my-8 mx-auto;
 }

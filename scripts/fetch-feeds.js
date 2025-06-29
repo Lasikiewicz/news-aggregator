@@ -22,6 +22,7 @@ const parser = new Parser();
 
 // --- AI Model Setup ---
 const AI_MODEL_NAME = "gemini-1.5-flash";
+// CORRECT INITIALIZATION: This was the source of the error.
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // --- Feed Configuration ---
@@ -35,24 +36,17 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
     try {
         const { data: html } = await axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
         const $ = cheerio.load(html);
-
         const articleBody = $(articleSelector);
-        if (!articleBody.length) {
-            return { textContent: null, imageUrls: [] };
-        }
+        if (!articleBody.length) return { textContent: null, imageUrls: [] };
 
-        // Find all images within the article body and get their src
         const imageUrls = [];
         articleBody.find(imageSelector).each((i, elem) => {
             const src = $(elem).attr('src');
-            if (src && src.startsWith('http')) {
-                imageUrls.push(src);
-            }
+            if (src && src.startsWith('http')) imageUrls.push(src);
         });
         
-        articleBody.find('script, style, .ad-container').remove();
+        articleBody.find('script, style').remove();
         const textContent = articleBody.text().trim().replace(/\s\s+/g, ' ');
-
         return { textContent, imageUrls };
     } catch (error) {
         console.error(`Scraping failed for ${url}: ${error.message}`);
@@ -62,18 +56,17 @@ async function scrapeArticleContent(url, articleSelector, imageSelector) {
 
 async function rewriteArticleWithAI(text, imageUrls) {
     if (!text) return null;
-    
-    // Convert the array of image URLs to a string list for the prompt
     const imageList = imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n');
 
+    // NEW PROMPT: Instructs the AI to create galleries
     const prompt = `Act as a professional gaming journalist and web layout editor.
-    TASK: Rewrite the following article text into an original, engaging blog post. Then, intelligently embed all the provided image URLs into the article content.
+    TASK: Rewrite the following article text into an original, engaging blog post. Intelligently embed all the provided image URLs into the article content.
     
     RULES:
     1. The final output must be pure, well-structured HTML.
     2. Do NOT use markdown. Do not wrap the output in \`\`\`html.
-    3. Weave the images into the article where they make the most sense contextually. Use standard <img> tags.
-    4. For each image, add the class="article-image" attribute to the <img> tag.
+    3. Weave the images into the article where they make sense. Use standard <img> tags with the class="article-image".
+    4. **If you place more than one image together, you MUST wrap them in a single <div class="image-gallery">.
     5. Use all the images provided.
 
     PROVIDED IMAGE URLS:
@@ -102,23 +95,18 @@ async function main() {
         try {
             console.log(`\n--- Processing Feed: ${feedConfig.source} ---`);
             const feed = await parser.parseURL(feedConfig.url);
-            const latestItems = feed.items.slice(0, 5);
-
-            for (const item of latestItems) {
+            for (const item of feed.items.slice(0, 5)) {
                 if (!item.link) continue;
                 const q = articlesRef.where('link', '==', item.link);
                 const querySnapshot = await q.get();
 
                 if (querySnapshot.empty) {
                     console.log(`Processing new article: "${item.title}"`);
-                    let { textContent, imageUrls } = await scrapeArticleContent(item.link, feedConfig.articleSelector, feedConfig.imageSelector);
-                    
-                    // If no images are found in the article, skip it entirely.
+                    const { textContent, imageUrls } = await scrapeArticleContent(item.link, feedConfig.articleSelector, feedConfig.imageSelector);
                     if (!imageUrls || imageUrls.length === 0) {
-                        console.log(`Skipped "${item.title}" due to no images found.`);
+                        console.log(`Skipped "${item.title}" due to no images.`);
                         continue;
                     }
-
                     const rewrittenContent = await rewriteArticleWithAI(textContent, imageUrls);
                     if (!rewrittenContent) continue;
                     
@@ -131,8 +119,8 @@ async function main() {
                         published: item.isoDate ? admin.firestore.Timestamp.fromDate(new Date(item.isoDate)) : admin.firestore.Timestamp.now(),
                         source: feedConfig.source,
                         category: feedConfig.category,
-                        imageUrl: imageUrls[0], // Use the first image as the main hero image
-                        content: rewrittenContent, // Content now includes all <img> tags
+                        imageUrl: imageUrls[0],
+                        content: rewrittenContent,
                         contentSnippet: contentSnippet,
                     });
                     console.log(`Successfully added AI-rewritten article: "${item.title}"`);
