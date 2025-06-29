@@ -13,7 +13,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-      # FIX: Use 'npm install' to resolve dependency mismatches in CI
       - name: Install dependencies
         run: npm install
       - name: Create Firebase Service Account Key
@@ -21,4 +20,6 @@ jobs:
           FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
         run: echo "$FIREBASE_KEY" > serviceAccountKey.json
       - name: Run feed fetch script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: node scripts/fetch-feeds.js
