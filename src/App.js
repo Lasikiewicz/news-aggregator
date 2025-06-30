@@ -1,152 +1,104 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
-import { Header, Error, Loading, Hero, ArticleList, LeftSidebar, RightSidebar } from './components';
-import { BrowserRouter as Router, Routes, Route, useSearchParams } from 'react-router-dom';
+
+import { Header, Hero, ArticleList, LeftSidebar, RightSidebar, Loading, Error } from './components';
 import { ArticlePage } from './ArticlePage';
+import { AdminPage } from './AdminPage'; // Import the new AdminPage
+import { getCategoryMap, getTrendingArticles, getTopStories, getAllTags } from './utils';
 
-const AppContent = () => {
+const HomePage = () => {
   const [articles, setArticles] = useState([]);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [categoryMap, setCategoryMap] = useState({});
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeSubCategory, setActiveSubCategory] = useState(null);
+  const [activeTag, setActiveTag] = useState(null);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeCategory = searchParams.get('category') || 'All';
-  const activeSubCategory = searchParams.get('subCategory');
-  const activeTag = searchParams.get('tag');
+  const location = useLocation();
 
   useEffect(() => {
-    const q = query(collection(db, "articles"), orderBy("published", "desc"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        setArticles(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setError('');
+    const fetchArticles = async () => {
+      try {
+        setLoading(true);
+        const articlesRef = collection(db, 'articles');
+        const q = query(articlesRef, orderBy('published', 'desc'), limit(50));
+        const querySnapshot = await getDocs(q);
+        const articlesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setArticles(articlesData);
+        setCategoryMap(getCategoryMap(articlesData));
+      } catch (err) {
+        setError('Failed to fetch articles.');
+        console.error(err);
+      } finally {
         setLoading(false);
-    }, (err) => {
-        setError(`Firestore Error: ${err.message}.`);
-        setLoading(false);
-    });
-    return () => unsubscribe();
+      }
+    };
+    fetchArticles();
   }, []);
 
-  const { categoryMap, allTags } = useMemo(() => {
-    const catMap = {};
-    const tagCounts = {};
-    articles.forEach(article => {
-        if (article && article.category) {
-            if (!catMap[article.category]) {
-                catMap[article.category] = new Set();
-            }
-            if (article.subCategory) {
-                catMap[article.category].add(article.subCategory);
-            }
-        }
-        if (article.tags) {
-            article.tags.forEach(tag => {
-                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-            });
-        }
-    });
-    const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).map(e => e[0]);
-    Object.keys(catMap).forEach(key => {
-        catMap[key] = Array.from(catMap[key]).sort();
-    });
-    return { categoryMap: catMap, allTags: sortedTags };
-  }, [articles]);
-
-  const filteredArticles = useMemo(() => {
-    let result = articles;
-    if (activeTag) {
-        result = result.filter(a => a.tags && a.tags.includes(activeTag));
-    } else {
-        if (activeCategory !== 'All') {
-            result = result.filter(a => a.category === activeCategory);
-        }
-        if (activeSubCategory) {
-            result = result.filter(a => a.subCategory === activeSubCategory);
-        }
-    }
-    return result;
-  }, [articles, activeCategory, activeSubCategory, activeTag]);
-
   const handleCategorySelect = (category, subCategory = null) => {
-      const params = new URLSearchParams();
-      if (category && category !== 'All') {
-          params.set('category', category);
-      }
-      if (subCategory) {
-          params.set('subCategory', subCategory);
-      }
-      setSearchParams(params);
+    setActiveCategory(category);
+    setActiveSubCategory(subCategory);
+    setActiveTag(null); // Reset tag filter when category changes
   };
 
   const handleTagSelect = (tag) => {
-    const params = new URLSearchParams();
-    if (tag) {
-        params.set('tag', tag);
+    setActiveTag(tag);
+    setActiveCategory('All'); // Reset category filter
+    setActiveSubCategory(null);
+  };
+
+  const filteredArticles = articles.filter(article => {
+    if (activeTag) {
+      return article.tags && article.tags.includes(activeTag);
     }
-    setSearchParams(params);
-  };
+    if (activeCategory === 'All') {
+      return true;
+    }
+    if (activeSubCategory) {
+      return article.category === activeCategory && article.subCategory === activeSubCategory;
+    }
+    return article.category === activeCategory;
+  });
 
-  const HomePage = () => {
-    if (loading) return <Loading />;
-    if (error) return <Error message={error} />;
-    const heroArticles = filteredArticles.slice(0, 5);
-    const trendingArticles = filteredArticles.slice(5, 9);
-    const topStories = filteredArticles.slice(9, 13);
-    const mainArticles = filteredArticles.slice(5);
+  if (loading) return <Loading />;
+  if (error) return <Error message={error} />;
 
-    return (
-      <div className="w-full max-w-screen-xl mx-auto">
-        <Hero articles={heroArticles} />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
-            <div className="lg:col-span-3">
-                <LeftSidebar trending={trendingArticles} topStories={topStories} />
-            </div>
-            <div className="lg:col-span-6">
-                 <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b-2 border-slate-200 pb-2">
-                    {activeTag || activeSubCategory || activeCategory} News
-                </h2>
-                 <ArticleList articles={mainArticles} />
-            </div>
-            <div className="lg:col-span-3">
-                 <RightSidebar
-                    categories={['All', ...Object.keys(categoryMap)]}
-                    activeCategory={activeCategory}
-                    onCategorySelect={handleCategorySelect}
-                    tags={allTags}
-                    onTagSelect={handleTagSelect}
-                    activeTag={activeTag}
-                 />
-            </div>
-        </div>
-      </div>
-    );
-  };
+  const allTags = getAllTags(articles);
 
   return (
-    <div className="bg-slate-100 min-h-screen font-sans">
-      <Header
-          categoryMap={categoryMap}
-          activeCategory={activeCategory}
-          activeSubCategory={activeSubCategory}
-          onCategorySelect={handleCategorySelect}
-      />
-      <main className="p-4 md:p-8">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/article/:articleId" element={<ArticlePage />} />
-        </Routes>
+    <>
+      <Header categoryMap={categoryMap} activeCategory={activeCategory} activeSubCategory={activeSubCategory} onCategorySelect={handleCategorySelect} />
+      <main className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8">
+        <Hero articles={articles.slice(0, 5)} />
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-3">
+            <LeftSidebar trending={getTrendingArticles(articles)} topStories={getTopStories(articles)} />
+          </div>
+          <div className="lg:col-span-6">
+            <ArticleList articles={filteredArticles} />
+          </div>
+          <div className="lg:col-span-3">
+            <RightSidebar categories={Object.keys(categoryMap)} activeCategory={activeCategory} onCategorySelect={handleCategorySelect} tags={allTags} onTagSelect={handleTagSelect} activeTag={activeTag} />
+          </div>
+        </div>
       </main>
-    </div>
+    </>
   );
-}
+};
 
 function App() {
-  const basename = process.env.NODE_ENV === 'production' ? '/news-aggregator' : '/';
-
   return (
-    <Router basename={basename} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AppContent />
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/article/:articleId" element={<ArticlePage />} />
+        {/* Add the new admin route */}
+        <Route path="/admin" element={<AdminPage />} />
+      </Routes>
     </Router>
   );
 }
