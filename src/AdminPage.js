@@ -290,7 +290,8 @@ const ManagePrompts = () => {
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Article Generation Prompt</label>
-                    <p className="text-xs text-gray-500 mb-1">Use {'${title}'}, {'${snippet}'}, and {'${imageList}'} as placeholders.</p>
+                    {/* FIX: Replaced the problematic JSX with a safer way to display the placeholders */}
+                    <p className="text-xs text-gray-500 mb-1">Use <code>${'{title}'}</code>, <code>${'{snippet}'}</code>, and <code>${'{imageList}'}</code> as placeholders.</p>
                     <textarea value={prompts.article} onChange={e => setPrompts({...prompts, article: e.target.value})} rows="15" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 font-mono text-sm"></textarea>
                 </div>
             </div>

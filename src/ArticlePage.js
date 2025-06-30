@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+// FIX: Removed unused 'collection' and 'getDocs' imports
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { Loading, Error, Header } from './components';
 import { formatDate, getCategoryMap } from './utils';
@@ -26,7 +27,7 @@ const ArticleHero = ({ article }) => {
 
 export function ArticlePage() {
   const [article, setArticle] = useState(null);
-  const [categoryMap, setCategoryMap] = useState({}); // State for the category map
+  const [categoryMap, setCategoryMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { articleId } = useParams();
@@ -37,7 +38,6 @@ export function ArticlePage() {
     const getPageData = async () => {
       try {
         setLoading(true);
-        // Fetch the single article
         const articleRef = doc(db, 'articles', articleId);
         const articleSnap = await getDoc(articleRef);
 
@@ -47,12 +47,10 @@ export function ArticlePage() {
           setError('Article not found.');
         }
 
-        // FIX: Fetch the feeds config to build the category map for the header
         const feedsDocRef = doc(db, 'config', 'feeds');
         const feedsDocSnap = await getDoc(feedsDocRef);
         if (feedsDocSnap.exists()) {
             const feedsData = feedsDocSnap.data().urls || [];
-            // Create a temporary structure that getCategoryMap can use
             const tempArticlesForMap = feedsData.map(feed => ({ category: feed.category, subCategory: null }));
             setCategoryMap(getCategoryMap(tempArticlesForMap));
         }
@@ -74,7 +72,6 @@ export function ArticlePage() {
 
   return (
     <>
-      {/* FIX: Pass the fetched categoryMap to the Header */}
       <Header categoryMap={categoryMap} />
       <div className="bg-slate-50">
         <ArticleHero article={article} />
