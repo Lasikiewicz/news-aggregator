@@ -4,21 +4,37 @@ const Parser = require('rss-parser');
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+// It's recommended to store your service account key securely and not directly in the project folder
 const serviceAccount = require("../serviceAccountKey.json");
 
 // --- CONFIGURATION ---
+// Corrected and expanded the list of feed sources.
 const feeds = [
+    // Playstation
     { url: 'https://www.gematsu.com/feed', category: 'Playstation' },
     { url: 'http://www.pushsquare.com/feeds/latest', category: 'Playstation' },
-    { url: 'https://www.videogameschronicle.com/platforms/playstation/feed/', category: 'Playstation' },
+    { url: 'https://blog.playstation.com/feed/', category: 'Playstation' },
+
+    // Xbox
     { url: 'https://www.purexbox.com/feeds/latest', category: 'Xbox' },
-    { url: 'https://www.videogameschronicle.com/platforms/xbox/feed/', category: 'Xbox' },
+    { url: 'https://news.xbox.com/en-us/feed/', category: 'Xbox' },
+
+    // Nintendo
     { url: 'https://www.nintendolife.com/feeds/latest', category: 'Nintendo' },
-    { url: 'https://www.videogameschronicle.com/platforms/nintendo/feed/', category: 'Nintendo' },
+    { url: 'https://www.nintendo.com/us/whatsnew/feed/', category: 'Nintendo' },
+
+    // PC
     { url: 'https://www.rockpapershotgun.com/feed', category: 'PC' },
     { url: 'https://www.pcgamer.com/rss/', category: 'PC' },
-    { url: 'https://www.videogameschronicle.com/platforms/pc/feed/', category: 'PC' }
+
+    // Multi-platform
+    { url: 'https://www.videogameschronicle.com/feed/', category: 'Multi-platform' },
+    { url: 'https://www.eurogamer.net/feed/news', category: 'Multi-platform' },
+    { url: 'https://www.gamespot.com/feeds/news/', category: 'Multi-platform' },
+    { url: 'https://feeds.feedburner.com/ign/all', category: 'Multi-platform' },
+    { url: 'https://kotaku.com/rss', category: 'Multi-platform' },
 ];
+
 
 // --- INITIALIZATION ---
 admin.initializeApp({
@@ -30,9 +46,15 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const rssParser = new Parser();
 const articlesRef = db.collection("articles");
 
+/**
+ * Checks if an article with the given GUID already exists in Firestore.
+ * @param {string} guid The unique identifier for the article.
+ * @returns {Promise<boolean>} True if the article exists, false otherwise.
+ */
 const articleExists = async (guid) => {
-    const querySnapshot = await articlesRef.where("guid", "==", guid).get();
-    return !querySnapshot.empty;
+    const docRef = articlesRef.doc(guid);
+    const doc = await docRef.get();
+    return doc.exists;
 };
 
 /**
@@ -41,105 +63,113 @@ const articleExists = async (guid) => {
  * @returns {Promise<string|null>} The image URL or null if not found.
  */
 const extractImageUrl = async (articleUrl) => {
-    if (!articleUrl) {
-        return null;
-    }
+    if (!articleUrl) return null;
     try {
         const { data } = await axios.get(articleUrl, {
-            // Use a common user-agent to avoid being blocked
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' },
+            timeout: 10000 // 10-second timeout
         });
         const $ = cheerio.load(data);
-        const imageUrl = $('meta[property="og:image"]').attr('content');
-        
-        if (imageUrl) {
-            console.log(`Image found for ${articleUrl}`);
-            return imageUrl;
-        } else {
-            console.log(`No 'og:image' tag found for ${articleUrl}`);
-            return null;
-        }
+        return $('meta[property="og:image"]').attr('content') || null;
     } catch (error) {
-        console.error(`Failed to fetch or parse article URL ${articleUrl}:`, error.message);
+        console.error(`[Image Scrape Error] Failed for ${articleUrl}: ${error.message}`);
         return null;
     }
 };
 
-const fetchFeeds = async () => {
-    console.log(`Starting feed fetch at ${new Date().toISOString()}`);
-
-    for (const feed of feeds) {
-        try {
-            const parsedFeed = await rssParser.parseURL(feed.url);
-            console.log(`\nProcessing feed: ${parsedFeed.title} (${parsedFeed.items.length} items)`);
-
-            for (const item of parsedFeed.items) {
-                const guid = item.guid || item.link;
-                if (!guid) {
-                    console.log(`Skipping article with no guid: ${item.title}`);
-                    continue;
-                }
-
-                if (await articleExists(guid)) {
-                    continue;
-                }
-
-                const imageUrl = await extractImageUrl(item.link);
-                if (!imageUrl) {
-                    console.log(`Skipping article with no suitable image: ${item.title}`);
-                    continue;
-                }
-
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-                const prompt = `
-                    1. Rewrite the following article text into an original, engaging blog post, formatted in HTML. Use tags like <p>, <h2>, <h3>, <ul>, and <li> for structure. The tone should be neutral and informative.
-                    2. In the generated HTML, include the provided image URL at a suitable point in the article, using an <img> tag with a "style" attribute for basic responsiveness (e.g., style="width: 100%; height: auto; border-radius: 0.75rem;").
-                    3. Generate a list of relevant tags for the article (e.g., "Xbox", "Gamepass", "RPG").
-                    4. Generate a sub-category for the article (e.g., "Gamepass", "Hardware", "PS5").
-                    5. Output the result as a JSON object with keys: "content", "tags", "subCategory". Do not include any other text or markdown formatting in your response.
-                    
-                    Article Text:
-                    ${item.title}\n\n${item.contentSnippet || ''}
-
-                    Image URL:
-                    ${imageUrl}
-                `;
-
-                try {
-                    const result = await model.generateContent(prompt);
-                    const response = await result.response;
-                    const text = await response.text();
-
-                    const cleanedText = text.replace(/^```json\s*|```\s*$/g, '').trim();
-                    const jsonResponse = JSON.parse(cleanedText);
-                    const { content, tags, subCategory } = jsonResponse;
-
-                    const newArticle = {
-                        guid: guid,
-                        title: item.title,
-                        link: item.link,
-                        content: content,
-                        contentSnippet: item.contentSnippet || 'Read more...',
-                        published: item.isoDate ? admin.firestore.Timestamp.fromDate(new Date(item.isoDate)) : admin.firestore.FieldValue.serverTimestamp(),
-                        category: feed.category,
-                        subCategory: subCategory || null,
-                        tags: tags || [],
-                        imageUrl: imageUrl,
-                        source: parsedFeed.title,
-                    };
-
-                    await articlesRef.add(newArticle);
-                    console.log(`>>> Successfully added article: ${item.title}`);
-                } catch (aiError) {
-                    console.error(`AI generation or JSON parsing failed for "${item.title}":`, aiError.message);
-                }
-            }
-        } catch (error) {
-            console.error(`Failed to process feed ${feed.url}:`, error.message);
-        }
+/**
+ * Processes a single article item from an RSS feed.
+ * @param {object} item The article item from the RSS feed.
+ * @param {object} feedInfo Contains metadata about the feed (category, source title).
+ */
+const processArticle = async (item, feedInfo) => {
+    const guid = item.guid || item.link;
+    if (!guid) {
+        console.log(`[Skip] No GUID for article: ${item.title}`);
+        return;
     }
-    console.log('Finished feed fetch.');
+
+    if (await articleExists(guid)) {
+        // console.log(`[Skip] Article already exists: ${item.title}`);
+        return;
+    }
+
+    const imageUrl = await extractImageUrl(item.link);
+    if (!imageUrl) {
+        console.log(`[Skip] No image for article: ${item.title}`);
+        return;
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `
+        1. Rewrite the following article text into an original, engaging blog post of at least 200 words, formatted in HTML. Use tags like <p>, <h2>, <h3>, <ul>, and <li>. The tone should be neutral and informative.
+        2. In the generated HTML, include this image URL at a suitable point: ${imageUrl}. Use an <img> tag with the class "article-image" and style for responsiveness (e.g., style="width: 100%; height: auto; border-radius: 0.75rem;").
+        3. Generate a list of 3-5 relevant string tags for the article (e.g., ["Xbox", "Gamepass", "RPG"]).
+        4. Generate a single, specific sub-category string for the article based on its content (e.g., "Game Pass", "PS5 Update", "Indie Showcase").
+        5. Output ONLY the result as a single, valid JSON object with keys: "content", "tags", "subCategory". Do not include any other text, backticks, or markdown formatting in your response.
+
+        Article Text:
+        Title: ${item.title}
+        Snippet: ${item.contentSnippet || item.content || ''}
+    `;
+
+    try {
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text().replace(/^```json\s*|```\s*$/g, '').trim();
+        const { content, tags, subCategory } = JSON.parse(responseText);
+
+        const newArticle = {
+            guid: guid,
+            title: item.title,
+            link: item.link,
+            content: content,
+            contentSnippet: item.contentSnippet || 'Read more...',
+            published: item.isoDate ? admin.firestore.Timestamp.fromDate(new Date(item.isoDate)) : admin.firestore.FieldValue.serverTimestamp(),
+            category: feedInfo.category,
+            subCategory: subCategory || 'General',
+            tags: tags || [],
+            imageUrl: imageUrl,
+            source: feedInfo.source,
+        };
+
+        await articlesRef.doc(guid).set(newArticle);
+        console.log(`[Success] Added article: ${item.title}`);
+    } catch (aiError) {
+        console.error(`[AI Error] Failed for "${item.title}":`, aiError.message);
+    }
 };
 
-fetchFeeds();
+
+/**
+ * Main function to fetch all feeds concurrently.
+ */
+const fetchAllFeedsConcurrently = async () => {
+    console.log(`--- Starting concurrent feed fetch at ${new Date().toISOString()} ---`);
+    
+    // Create an array of promises, one for each feed to be processed.
+    const feedPromises = feeds.map(async (feedConfig) => {
+        try {
+            const parsedFeed = await rssParser.parseURL(feedConfig.url);
+            console.log(`[Processing Feed] ${parsedFeed.title} (${parsedFeed.items.length} items)`);
+            
+            // For each feed, create an array of promises to process its articles concurrently.
+            const articlePromises = parsedFeed.items.map(item => {
+                const feedInfo = { category: feedConfig.category, source: parsedFeed.title };
+                return processArticle(item, feedInfo);
+            });
+            
+            // Wait for all articles in the current feed to be processed.
+            await Promise.allSettled(articlePromises);
+
+        } catch (error) {
+            console.error(`[Feed Error] Failed to process feed ${feedConfig.url}: ${error.message}`);
+        }
+    });
+
+    // Wait for all feed processing promises to complete.
+    await Promise.allSettled(feedPromises);
+
+    console.log(`--- Finished all feed processing at ${new Date().toISOString()} ---`);
+};
+
+fetchAllFeedsConcurrently();
