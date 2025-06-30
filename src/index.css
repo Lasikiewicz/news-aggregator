@@ -19,14 +19,15 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding: 1.5rem; /* Adjusted padding for better responsive behavior */
+    padding: 1.5rem;
 }
 
 .header-content {
-    max-width: 80rem; /* Corresponds to max-w-screen-xl */
+    max-width: 80rem;
     width: 100%;
     color: white;
-    text-align: center; /* Centered content for a better mobile look */
+    text-align: center;
+    padding-bottom: 4rem; /* FIX: Added padding to the bottom to prevent title overlapping the body */
 }
 
 .header-content .category-tag {
@@ -43,19 +44,19 @@
 
 /* Container for the main article text */
 .article-body-wrapper {
-    /* Mobile-first styling for better responsiveness */
-    @apply bg-white p-6 md:p-12 w-full sm:w-11/12 md:w-4/5 max-w-4xl mx-auto -mt-16 md:-mt-24 relative rounded-t-lg shadow-2xl;
+    /* FIX: Removed the negative margin that caused the overlap. The body now flows naturally after the header. */
+    @apply bg-white p-6 md:p-12 w-full sm:w-11/12 md:w-4/5 max-w-4xl mx-auto rounded-lg shadow-2xl relative;
+    margin-top: -6rem; /* A controlled negative margin to pull the content up slightly */
 }
 
+
 /* Regular images embedded by the AI */
-.article-content img.article-image {
-    /* Ensuring images are responsive */
+.article-content img { /* General selector for any image inside the content */
     @apply rounded-lg shadow-xl my-8 mx-auto w-full h-auto;
 }
 
 /* Container for the full-width parallax image */
 .full-width-parallax-container {
-    /* This technique breaks the element out of the parent container's constraints */
     width: 100vw;
     margin-left: 50%;
     transform: translateX(-50%);
@@ -76,21 +77,19 @@
 
 /* --- Responsive Overrides --- */
 @media (max-width: 768px) {
-    /* Disable parallax on mobile for performance and compatibility, as 'fixed' is often buggy */
     .main-parallax-header, .parallax-image {
         background-attachment: scroll;
     }
 
     .main-parallax-header {
-        height: 45vh; /* A shorter header is more appropriate for mobile viewports */
+        height: 45vh;
     }
 
     .header-content h1 {
-        @apply text-3xl; /* Adjust font size to prevent overflow on smaller screens */
+        @apply text-3xl;
     }
 
     .article-body-wrapper {
-        /* Adjust the negative margin to match the shorter header */
         @apply -mt-12 p-6;
     }
 }

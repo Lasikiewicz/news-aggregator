@@ -107,18 +107,49 @@ function findSubCategory(searchTitle, mainCategory) {
     return 'General';
 }
 
-const extractImageUrl = async (articleUrl) => {
-    if (!articleUrl) return null;
+// FIX: Renamed function and enhanced logic to get all relevant images
+const scrapeArticleContent = async (articleUrl) => {
+    if (!articleUrl) return { heroImage: null, bodyImages: [] };
     try {
         const { data } = await axios.get(articleUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' },
             timeout: 10000
         });
         const $ = cheerio.load(data);
-        return $('meta[property="og:image"]').attr('content') || null;
+        const seenUrls = new Set();
+        const bodyImages = [];
+
+        // Prioritize Open Graph image for the hero
+        let heroImage = $('meta[property="og:image"]').attr('content') || null;
+
+        // Scrape all images from the main content area
+        $('article img, .post-content img, .entry-content img').each((i, elem) => {
+            const src = $(elem).attr('src');
+            if (!src) return;
+
+            // Resolve relative URLs to be absolute
+            const absoluteSrc = new URL(src, articleUrl).href;
+
+            // Avoid duplicates and tiny tracking pixels/icons
+            if (!seenUrls.has(absoluteSrc) && !absoluteSrc.includes('avatar') && !absoluteSrc.includes('data:image')) {
+                bodyImages.push(absoluteSrc);
+                seenUrls.add(absoluteSrc);
+            }
+        });
+
+        // If no hero image was found via Open Graph, use the first scraped image
+        if (!heroImage && bodyImages.length > 0) {
+            heroImage = bodyImages.shift(); // Use the first image as hero and remove it from the body list
+        }
+        
+        // Add the hero image to the seen set to prevent it from appearing in the body as well
+        if(heroImage) seenUrls.add(heroImage);
+
+        return { heroImage, bodyImages };
+
     } catch (error) {
         console.error(`[Image Scrape Error] Failed for ${articleUrl}: ${error.message}`);
-        return null;
+        return { heroImage: null, bodyImages: [] };
     }
 };
 
@@ -131,9 +162,10 @@ const processArticle = async (item, feedInfo) => {
     const guid = item.guid || item.link;
     if (!guid || await articleExists(guid)) return;
 
-    const imageUrl = await extractImageUrl(item.link);
-    if (!imageUrl) {
-        console.log(`[Skip] No image for article: ${item.title}`);
+    // FIX: Call the updated scraping function
+    const { heroImage, bodyImages } = await scrapeArticleContent(item.link);
+    if (!heroImage) { // Only skip if we can't find a single image to use as the hero
+        console.log(`[Skip] No hero image for article: ${item.title}`);
         return;
     }
 
@@ -143,10 +175,9 @@ const processArticle = async (item, feedInfo) => {
     const prompt = `
         You are a gaming news editor. Your task is to process an article summary and return a clean JSON object.
         Instructions:
-        1.  **Rewrite Content:** Rewrite the provided article text into an original, engaging blog post of at least 200 words. Format it in clean HTML using tags like <p>, <h2>, <h3>, <ul>, and <li>. The tone must be neutral and informative.
-        2.  **Include Image:** In the generated HTML, include this image URL at a suitable point: ${imageUrl}. Use an <img> tag with class="article-image".
-        3.  **Generate Tags:** Create a JSON array of 3-5 relevant string tags for the article (e.g., ["Review", "RPG", "Square Enix"]).
-        4.  **JSON Output:** Output ONLY the result as a single, valid JSON object with the keys: "content" and "tags". Do not include any other text, backticks, or markdown formatting in your response.
+        1.  **Rewrite Content:** Rewrite the provided article text into an original, engaging blog post of at least 500 words. Format it in clean HTML using tags like <p>, <h2>, <h3>, <ul>, and <li>. The tone must be neutral and informative. Do NOT include any <img> tags in the HTML content you generate.
+        2.  **Generate Tags:** Create a JSON array of 3-5 relevant string tags for the article (e.g., ["Review", "RPG", "Square Enix"]).
+        3.  **JSON Output:** Output ONLY the result as a single, valid JSON object with the keys: "content" and "tags". Do not include any other text, backticks, or markdown formatting in your response.
 
         Article Text:
         Title: ${item.title}
@@ -168,7 +199,8 @@ const processArticle = async (item, feedInfo) => {
             category: category,
             subCategory: subCategory,
             tags: tags || [],
-            imageUrl: imageUrl,
+            imageUrl: heroImage, // Use the scraped hero image
+            bodyImages: bodyImages, // Store the array of body images
             source: feedInfo.source,
         };
 
@@ -202,10 +234,7 @@ const fetchAllFeedsConcurrently = async () => {
     
     await admin.app().delete();
     console.log('--- Firebase connection closed. Script finished. ---');
-
-    // --- FIX ---
-    // Forcefully exit the script with a success code (0).
-    // This tells the GitHub Action runner that the step is complete.
+    
     process.exit(0);
 };
 
