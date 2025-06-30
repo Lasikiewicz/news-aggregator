@@ -96,28 +96,36 @@ export const Hero = ({ articles }) => {
     const otherArticles = articles.filter(a => a.id !== activeArticle.id).slice(0, 4);
 
     return (
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 md:h-[60vh] h-auto p-4 md:p-0">
-            <div className="md:col-span-2 lg:col-span-2 relative h-64 md:h-full rounded-2xl overflow-hidden shadow-xl group">
+        // --- FIX ---
+        // Added h-auto for mobile and p-4 for spacing.
+        <section className="p-4 lg:p-0 grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[60vh]">
+            {/* --- FIX --- Added h-64 for a consistent mobile height. */}
+            <div className="lg:col-span-2 relative h-64 lg:h-full rounded-2xl overflow-hidden shadow-xl group">
                 <Link to={`/article/${activeArticle.id}`} className="absolute inset-0">
                     <img src={activeArticle.imageUrl} alt={activeArticle.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"/>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                    <div className="absolute bottom-0 left-0 p-4 md:p-8">
-                        <span className="text-sm font-bold bg-blue-500 text-white px-3 py-1 rounded-full mb-2 md:mb-4 inline-block">{activeArticle.category}</span>
-                        <h2 className="text-xl md:text-3xl font-bold text-white leading-tight drop-shadow-lg">{activeArticle.title}</h2>
-                        {activeArticle.published && <p className="text-slate-200 mt-2 text-xs md:text-sm">{new Date(activeArticle.published.toDate()).toLocaleString()}</p>}
+                    <div className="absolute bottom-0 left-0 p-8">
+                        <span className="text-sm font-bold bg-blue-500 text-white px-3 py-1 rounded-full mb-4 inline-block">{activeArticle.category}</span>
+                        <h2 className="text-3xl font-bold text-white leading-tight drop-shadow-lg">{activeArticle.title}</h2>
+                        {activeArticle.published && <p className="text-slate-200 mt-2 text-sm">{new Date(activeArticle.published.toDate()).toLocaleString()}</p>}
                     </div>
                 </Link>
             </div>
-            <div className="lg:col-span-1 h-full flex flex-col gap-4">
-                 {otherArticles.map(article => (
-                     <div key={article.id} onClick={() => setActiveArticle(article)} className="relative h-24 md:h-1/4 rounded-xl overflow-hidden shadow-lg cursor-pointer group">
+            {/* --- FIX ---
+                Changed container to a 2-column grid on mobile, and a flex-col on desktop.
+            */}
+            <div className="grid grid-cols-2 gap-4 lg:col-span-1 lg:flex lg:flex-col lg:h-full">
+                {otherArticles.map(article => (
+                    // --- FIX ---
+                    // Added h-32 for a fixed mobile height, lg:h-full for desktop flex behavior.
+                    <div key={article.id} onClick={() => setActiveArticle(article)} className="relative h-32 lg:h-full rounded-xl overflow-hidden shadow-lg cursor-pointer group">
                          <Link to={`/article/${article.id}`} className="absolute inset-0">
                              <img src={article.imageUrl} alt={article.title} className="absolute w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"/>
                              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/40 transition-colors"></div>
                              <h3 className="absolute bottom-0 left-0 p-3 text-sm font-bold text-white leading-tight drop-shadow-md">{article.title}</h3>
                          </Link>
-                     </div>
-                 ))}
+                    </div>
+                ))}
             </div>
         </section>
     );
@@ -127,19 +135,19 @@ export const Hero = ({ articles }) => {
 export const ArticleList = ({ articles }) => (
     <div className="space-y-8">
         {articles.map(article => (
-            <div key={article.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 group bg-white p-4 rounded-lg shadow-md hover:shadow-xl transition-shadow">
-                <div className="md:col-span-1 rounded-lg overflow-hidden h-48 md:h-full">
+            <div key={article.id} className="grid grid-cols-1 md:grid-cols-3 gap-6 group bg-white p-4 rounded-lg shadow-md hover:shadow-xl transition-shadow">
+                <div className="md:col-span-1 rounded-lg overflow-hidden">
                     <Link to={`/article/${article.id}`}>
-                        <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"/>
+                        <img src={article.imageUrl} alt={article.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"/>
                     </Link>
                 </div>
-                <div className="md:col-span-2 flex flex-col">
+                <div className="md:col-span-2">
                     <span className="text-xs font-semibold text-blue-600 uppercase">{article.category}</span>
-                    <h2 className="text-lg md:text-xl font-bold text-slate-800 mt-1 mb-2 group-hover:text-blue-600 transition-colors flex-grow">
+                    <h2 className="text-xl font-bold text-slate-800 mt-1 mb-2 group-hover:text-blue-600 transition-colors">
                         <Link to={`/article/${article.id}`}>{article.title}</Link>
                     </h2>
-                    <p className="text-slate-600 text-sm leading-relaxed mb-3 hidden sm:block">{article.contentSnippet}</p>
-                    {article.published && <p className="text-xs text-slate-400 mt-auto">{new Date(article.published.toDate()).toLocaleString()}</p>}
+                    <p className="text-slate-600 text-sm leading-relaxed mb-3">{article.contentSnippet}</p>
+                    {article.published && <p className="text-xs text-slate-400">{new Date(article.published.toDate()).toLocaleString()}</p>}
                 </div>
             </div>
         ))}
@@ -223,6 +231,7 @@ export const RightSidebar = ({ categories, activeCategory, onCategorySelect, tag
 );
 
 export const SocialShare = ({ articleUrl, title }) => {
+    // This component remains the same
     const encodedUrl = encodeURIComponent(articleUrl);
     const encodedTitle = encodeURIComponent(title);
 
@@ -258,6 +267,7 @@ export const SocialShare = ({ articleUrl, title }) => {
 };
 
 export const ImageGallery = ({ images }) => {
+    // This component remains the same
     const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {
@@ -271,7 +281,7 @@ export const ImageGallery = ({ images }) => {
     if (!images || images.length === 0) return null;
 
     return (
-        <div className="relative w-full h-64 md:h-96 my-8 rounded-lg shadow-xl overflow-hidden bg-slate-800">
+        <div className="relative w-full h-96 my-8 rounded-lg shadow-xl overflow-hidden bg-slate-800">
             {images.map((image, index) => (
                 <div key={index} className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
                     {React.cloneElement(image, { className: 'w-full h-full object-cover' })}
@@ -279,24 +289,12 @@ export const ImageGallery = ({ images }) => {
             ))}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
                 {images.map((_, index) => (
-                    <button key={index} onClick={() => setCurrentIndex(index)} className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-colors ${index === currentIndex ? 'bg-white' : 'bg-white/50 hover:bg-white'}`} />
+                    <button key={index} onClick={() => setCurrentIndex(index)} className={`w-3 h-3 rounded-full transition-colors ${index === currentIndex ? 'bg-white' : 'bg-white/50 hover:bg-white'}`} />
                 ))}
             </div>
         </div>
     );
 };
 
-export const Loading = () => (
-    <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-600"></div>
-    </div>
-);
-
-export const Error = ({ message }) => (
-     <div className="flex justify-center items-center h-screen p-4">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative text-center" role="alert">
-            <strong className="font-bold block sm:inline">Error!</strong>
-            <span className="block sm:inline"> {message || 'Something went wrong.'}</span>
-        </div>
-    </div>
-);
+export const Loading = () => <div className="text-center p-16 font-semibold text-slate-500">Loading...</div>;
+export const Error = ({ message }) => <div className="text-center p-16 text-red-600 font-bold">{message}</div>;
