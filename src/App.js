@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+// FIX: Import HashRouter instead of BrowserRouter for GitHub Pages compatibility
+import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -92,6 +93,7 @@ const HomePage = () => {
 
 function App() {
   return (
+    // FIX: Use HashRouter here
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
