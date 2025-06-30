@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
+// NEW: Added the missing Layout component
+export const Layout = ({ children }) => (
+    <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+    </div>
+);
+
 export const Header = ({ categoryMap, activeCategory, activeSubCategory, onCategorySelect }) => {
     // Ensure categoryMap is an object before getting keys to prevent crash
     const categories = categoryMap ? Object.keys(categoryMap) : [];
@@ -96,10 +103,7 @@ export const Hero = ({ articles }) => {
     const otherArticles = articles.filter(a => a.id !== activeArticle.id).slice(0, 4);
 
     return (
-        // --- FIX ---
-        // Added h-auto for mobile and p-4 for spacing.
         <section className="p-4 lg:p-0 grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[60vh]">
-            {/* --- FIX --- Added h-64 for a consistent mobile height. */}
             <div className="lg:col-span-2 relative h-64 lg:h-full rounded-2xl overflow-hidden shadow-xl group">
                 <Link to={`/article/${activeArticle.id}`} className="absolute inset-0">
                     <img src={activeArticle.imageUrl} alt={activeArticle.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"/>
@@ -111,13 +115,8 @@ export const Hero = ({ articles }) => {
                     </div>
                 </Link>
             </div>
-            {/* --- FIX ---
-                Changed container to a 2-column grid on mobile, and a flex-col on desktop.
-            */}
             <div className="grid grid-cols-2 gap-4 lg:col-span-1 lg:flex lg:flex-col lg:h-full">
                 {otherArticles.map(article => (
-                    // --- FIX ---
-                    // Added h-32 for a fixed mobile height, lg:h-full for desktop flex behavior.
                     <div key={article.id} onClick={() => setActiveArticle(article)} className="relative h-32 lg:h-full rounded-xl overflow-hidden shadow-lg cursor-pointer group">
                          <Link to={`/article/${article.id}`} className="absolute inset-0">
                              <img src={article.imageUrl} alt={article.title} className="absolute w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"/>
@@ -231,7 +230,6 @@ export const RightSidebar = ({ categories, activeCategory, onCategorySelect, tag
 );
 
 export const SocialShare = ({ articleUrl, title }) => {
-    // This component remains the same
     const encodedUrl = encodeURIComponent(articleUrl);
     const encodedTitle = encodeURIComponent(title);
 
@@ -267,7 +265,6 @@ export const SocialShare = ({ articleUrl, title }) => {
 };
 
 export const ImageGallery = ({ images }) => {
-    // This component remains the same
     const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {

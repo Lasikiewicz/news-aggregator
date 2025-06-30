@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Layout, Loader, Hero } from './components'; // Import Hero
+// FIX: Changed import from 'Loader' to 'Loading' to match the export in components.js
+import { Layout, Loading, Hero } from './components';
 import { formatDate } from './utils';
 
 export function ArticlePage() {
@@ -15,8 +16,6 @@ export function ArticlePage() {
     const getArticle = async () => {
       try {
         setLoading(true);
-        // The articleId from the URL is the base64 encoded link.
-        // We assume the document ID in Firestore is this encoded link.
         const docRef = doc(db, 'articles', articleId);
         const docSnap = await getDoc(docRef);
 
@@ -40,7 +39,8 @@ export function ArticlePage() {
   if (loading) {
     return (
       <Layout>
-        <Loader />
+        {/* FIX: Use the correctly imported 'Loading' component */}
+        <Loading />
       </Layout>
     );
   }
