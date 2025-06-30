@@ -8,31 +8,37 @@ const cheerio = require('cheerio');
 const serviceAccount = require("../serviceAccountKey.json");
 
 // --- CONFIGURATION ---
-// Corrected and expanded the list of feed sources.
+// Revised and categorized feeds to match the desired front-end structure.
 const feeds = [
-    // Playstation
-    { url: 'https://www.gematsu.com/feed', category: 'Playstation' },
-    { url: 'http://www.pushsquare.com/feeds/latest', category: 'Playstation' },
-    { url: 'https://blog.playstation.com/feed/', category: 'Playstation' },
+    // PlayStation
+    { url: 'https://www.gematsu.com/c/playstation-5/feed', category: 'PlayStation' },
+    { url: 'http://www.pushsquare.com/feeds/latest', category: 'PlayStation' },
+    { url: 'https://blog.playstation.com/feed/', category: 'PlayStation' },
 
     // Xbox
     { url: 'https://www.purexbox.com/feeds/latest', category: 'Xbox' },
     { url: 'https://news.xbox.com/en-us/feed/', category: 'Xbox' },
+    { url: 'https://www.windowscentral.com/gaming/xbox/rss', category: 'Xbox'},
 
     // Nintendo
     { url: 'https://www.nintendolife.com/feeds/latest', category: 'Nintendo' },
     { url: 'https://www.nintendo.com/us/whatsnew/feed/', category: 'Nintendo' },
+    { url: 'https://gonintendo.com/feeds/posts', category: 'Nintendo' },
 
-    // PC
-    { url: 'https://www.rockpapershotgun.com/feed', category: 'PC' },
-    { url: 'https://www.pcgamer.com/rss/', category: 'PC' },
+    // PC Gaming
+    { url: 'https://www.rockpapershotgun.com/feed', category: 'PC Gaming' },
+    { url: 'https://www.pcgamer.com/rss/', category: 'PC Gaming' },
+    { url: 'https://www.dsogaming.com/feed/', category: 'PC Gaming'},
 
-    // Multi-platform
+    // Mobile
+    { url: 'https://toucharcade.com/feed', category: 'Mobile' },
+    { url: 'https://www.droidgamers.com/feed/', category: 'Mobile'},
+    { url: 'https://www.pocketgamer.com/rss/', category: 'Mobile' },
+
+    // General sources that the AI will categorize
     { url: 'https://www.videogameschronicle.com/feed/', category: 'Multi-platform' },
     { url: 'https://www.eurogamer.net/feed/news', category: 'Multi-platform' },
     { url: 'https://www.gamespot.com/feeds/news/', category: 'Multi-platform' },
-    { url: 'https://feeds.feedburner.com/ign/all', category: 'Multi-platform' },
-    { url: 'https://kotaku.com/rss', category: 'Multi-platform' },
 ];
 
 
@@ -78,6 +84,29 @@ const extractImageUrl = async (articleUrl) => {
 };
 
 /**
+ * Creates a dynamic prompt for the AI based on the article's main category.
+ * @param {string} category The main category of the article (e.g., "PlayStation").
+ * @returns {string} The contextual prompt for the AI.
+ */
+const getSubCategoryPrompt = (category) => {
+    switch (category) {
+        case 'PlayStation':
+            return "Generate a sub-category from this list if relevant: 'PS5', 'PS4', 'PS Plus', 'PS VR', 'Deals'. Otherwise, generate a suitable, specific sub-category.";
+        case 'Xbox':
+            return "Generate a sub-category from this list if relevant: 'Xbox Series X', 'Xbox Series S', 'Game Pass', 'Deals'. Otherwise, generate a suitable, specific sub-category.";
+        case 'Nintendo':
+            return "Generate a sub-category from this list if relevant: 'Switch', 'Switch 2', 'eShop', 'Deals'. Otherwise, generate a suitable, specific sub-category.";
+        case 'PC Gaming':
+             return "Generate a sub-category from this list if relevant: 'Hardware', 'Steam', 'Epic Games Store', 'Free Games'. Otherwise, generate a suitable, specific sub-category.";
+        case 'Mobile':
+            return "Generate a sub-category from this list if relevant: 'iOS', 'Android', 'Apple Arcade'. Otherwise, generate a suitable, specific sub-category.";
+        default:
+            return "Generate a suitable, specific sub-category for this article (e.g., 'Game Review', 'Industry News').";
+    }
+}
+
+
+/**
  * Processes a single article item from an RSS feed.
  * @param {object} item The article item from the RSS feed.
  * @param {object} feedInfo Contains metadata about the feed (category, source title).
@@ -90,7 +119,6 @@ const processArticle = async (item, feedInfo) => {
     }
 
     if (await articleExists(guid)) {
-        // console.log(`[Skip] Article already exists: ${item.title}`);
         return;
     }
 
@@ -101,22 +129,31 @@ const processArticle = async (item, feedInfo) => {
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Get the dynamic sub-category instruction for the prompt
+    const subCategoryInstruction = getSubCategoryPrompt(feedInfo.category);
+
     const prompt = `
-        1. Rewrite the following article text into an original, engaging blog post of at least 200 words, formatted in HTML. Use tags like <p>, <h2>, <h3>, <ul>, and <li>. The tone should be neutral and informative.
-        2. In the generated HTML, include this image URL at a suitable point: ${imageUrl}. Use an <img> tag with the class "article-image" and style for responsiveness (e.g., style="width: 100%; height: auto; border-radius: 0.75rem;").
-        3. Generate a list of 3-5 relevant string tags for the article (e.g., ["Xbox", "Gamepass", "RPG"]).
-        4. Generate a single, specific sub-category string for the article based on its content (e.g., "Game Pass", "PS5 Update", "Indie Showcase").
-        5. Output ONLY the result as a single, valid JSON object with keys: "content", "tags", "subCategory". Do not include any other text, backticks, or markdown formatting in your response.
+        You are an expert gaming news editor. Your task is to process an article and return a clean JSON object.
+        
+        Instructions:
+        1.  **Rewrite Content:** Rewrite the provided article text into an original, engaging blog post of at least 200 words. Format it in clean HTML using tags like <p>, <h2>, <h3>, <ul>, and <li>. The tone must be neutral and informative.
+        2.  **Include Image:** In the generated HTML, include this image URL at a suitable point: ${imageUrl}. Use an <img> tag with class="article-image".
+        3.  **Generate Tags:** Create a list of 3-5 relevant string tags for the article (e.g., ["Xbox", "Gamepass", "RPG"]).
+        4.  **Generate Sub-Category:** ${subCategoryInstruction}
+        5.  **Determine Main Category**: If the provided category is 'Multi-platform', determine the most appropriate main category from this list: "PlayStation", "Xbox", "Nintendo", "PC Gaming". Otherwise, use the provided category.
+        6.  **JSON Output:** Output ONLY the result as a single, valid JSON object with keys: "content", "tags", "subCategory", "mainCategory". Do not include any text, backticks, or markdown formatting in your response.
 
         Article Text:
         Title: ${item.title}
         Snippet: ${item.contentSnippet || item.content || ''}
+        Provided Category: ${feedInfo.category}
     `;
 
     try {
         const result = await model.generateContent(prompt);
         const responseText = result.response.text().replace(/^```json\s*|```\s*$/g, '').trim();
-        const { content, tags, subCategory } = JSON.parse(responseText);
+        const { content, tags, subCategory, mainCategory } = JSON.parse(responseText);
 
         const newArticle = {
             guid: guid,
@@ -125,7 +162,7 @@ const processArticle = async (item, feedInfo) => {
             content: content,
             contentSnippet: item.contentSnippet || 'Read more...',
             published: item.isoDate ? admin.firestore.Timestamp.fromDate(new Date(item.isoDate)) : admin.firestore.FieldValue.serverTimestamp(),
-            category: feedInfo.category,
+            category: mainCategory || feedInfo.category, // Use the AI's category, or fall back to the feed's
             subCategory: subCategory || 'General',
             tags: tags || [],
             imageUrl: imageUrl,
@@ -133,7 +170,7 @@ const processArticle = async (item, feedInfo) => {
         };
 
         await articlesRef.doc(guid).set(newArticle);
-        console.log(`[Success] Added article: ${item.title}`);
+        console.log(`[Success] Added '${item.title}' to category: ${newArticle.category}`);
     } catch (aiError) {
         console.error(`[AI Error] Failed for "${item.title}":`, aiError.message);
     }
@@ -146,19 +183,16 @@ const processArticle = async (item, feedInfo) => {
 const fetchAllFeedsConcurrently = async () => {
     console.log(`--- Starting concurrent feed fetch at ${new Date().toISOString()} ---`);
     
-    // Create an array of promises, one for each feed to be processed.
     const feedPromises = feeds.map(async (feedConfig) => {
         try {
             const parsedFeed = await rssParser.parseURL(feedConfig.url);
             console.log(`[Processing Feed] ${parsedFeed.title} (${parsedFeed.items.length} items)`);
             
-            // For each feed, create an array of promises to process its articles concurrently.
             const articlePromises = parsedFeed.items.map(item => {
                 const feedInfo = { category: feedConfig.category, source: parsedFeed.title };
                 return processArticle(item, feedInfo);
             });
             
-            // Wait for all articles in the current feed to be processed.
             await Promise.allSettled(articlePromises);
 
         } catch (error) {
@@ -166,13 +200,10 @@ const fetchAllFeedsConcurrently = async () => {
         }
     });
 
-    // Wait for all feed processing promises to complete.
     await Promise.allSettled(feedPromises);
 
     console.log(`--- Finished all feed processing at ${new Date().toISOString()} ---`);
-
-    // --- FIX ---
-    // Explicitly terminate the Firebase app to allow the script to exit.
+    
     await admin.app().delete();
     console.log('--- Firebase connection closed. Script finished. ---');
 };
