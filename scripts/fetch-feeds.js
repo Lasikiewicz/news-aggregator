@@ -170,6 +170,11 @@ const fetchAllFeedsConcurrently = async () => {
     await Promise.allSettled(feedPromises);
 
     console.log(`--- Finished all feed processing at ${new Date().toISOString()} ---`);
+
+    // --- FIX ---
+    // Explicitly terminate the Firebase app to allow the script to exit.
+    await admin.app().delete();
+    console.log('--- Firebase connection closed. Script finished. ---');
 };
 
 fetchAllFeedsConcurrently();
