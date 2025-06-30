@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Import HashRouter instead of BrowserRouter for GitHub Pages compatibility
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom'; // FIX: Removed useLocation as it's not used
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 
 import { Header, Hero, ArticleList, LeftSidebar, RightSidebar, Loading, Error } from './components';
 import { ArticlePage } from './ArticlePage';
-import { AdminPage } from './AdminPage'; // Import the new AdminPage
+import { AdminPage } from './AdminPage';
 import { getCategoryMap, getTrendingArticles, getTopStories, getAllTags } from './utils';
 
 const HomePage = () => {
@@ -18,7 +17,7 @@ const HomePage = () => {
   const [activeSubCategory, setActiveSubCategory] = useState(null);
   const [activeTag, setActiveTag] = useState(null);
 
-  const location = useLocation();
+  // FIX: The unused 'location' variable has been removed.
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -43,12 +42,12 @@ const HomePage = () => {
   const handleCategorySelect = (category, subCategory = null) => {
     setActiveCategory(category);
     setActiveSubCategory(subCategory);
-    setActiveTag(null); // Reset tag filter when category changes
+    setActiveTag(null);
   };
 
   const handleTagSelect = (tag) => {
     setActiveTag(tag);
-    setActiveCategory('All'); // Reset category filter
+    setActiveCategory('All');
     setActiveSubCategory(null);
   };
 
@@ -93,12 +92,10 @@ const HomePage = () => {
 
 function App() {
   return (
-    // FIX: Use HashRouter here
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/article/:articleId" element={<ArticlePage />} />
-        {/* Add the new admin route */}
         <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </Router>

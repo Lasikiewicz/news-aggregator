@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from './firebase';
+import { auth } from './firebase'; // FIX: Removed unused 'db' import
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, getDocs, doc, updateDoc, deleteDoc, writeBatch, addDoc, getDoc, setDoc } from 'firebase/firestore';
+// FIX: Removed all unused imports from 'firebase/firestore'
+// We will add these back as we implement the features for each tab.
 
 // --- Login Component ---
 const AdminLogin = ({ onLogin }) => {
@@ -22,7 +23,6 @@ const AdminLogin = ({ onLogin }) => {
             await signInWithEmailAndPassword(auth, email, password);
             onLogin();
         } catch (signInError) {
-            // If sign-in fails, try to create the user (first-time setup)
             if (signInError.code === 'auth/user-not-found' || signInError.code === 'auth/wrong-password') {
                 try {
                     await createUserWithEmailAndPassword(auth, email, password);
@@ -89,7 +89,6 @@ const AdminLogin = ({ onLogin }) => {
 // --- Main Admin Dashboard Component ---
 const AdminDashboard = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('articles');
-    // Add states for managing data here, e.g., articles, feeds, prompts
     
     return (
         <div className="bg-slate-50 min-h-screen">
@@ -115,7 +114,6 @@ const AdminDashboard = ({ onLogout }) => {
                         </nav>
                     </div>
                     <div className="pt-8">
-                        {/* Placeholder for tab content */}
                         <div className="bg-white p-6 rounded-lg shadow">
                             <h2 className="text-xl font-semibold mb-4 capitalize">{activeTab} Management</h2>
                             <p>Functionality for the {activeTab} section will be implemented here.</p>
