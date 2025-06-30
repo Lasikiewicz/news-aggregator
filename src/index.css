@@ -17,7 +17,7 @@
     inset: 0;
     background-color: rgba(0, 0, 0, 0.6);
     display: flex;
-    align-items: flex-end;
+    align-items: center; /* Vertically center the content */
     justify-content: center;
     padding: 1.5rem;
 }
@@ -27,7 +27,7 @@
     width: 100%;
     color: white;
     text-align: center;
-    padding-bottom: 4rem; /* FIX: Added padding to the bottom to prevent title overlapping the body */
+    /* FIX: Removed bottom padding as vertical centering handles spacing */
 }
 
 .header-content .category-tag {
@@ -44,35 +44,13 @@
 
 /* Container for the main article text */
 .article-body-wrapper {
-    /* FIX: Removed the negative margin that caused the overlap. The body now flows naturally after the header. */
-    @apply bg-white p-6 md:p-12 w-full sm:w-11/12 md:w-4/5 max-w-4xl mx-auto rounded-lg shadow-2xl relative;
-    margin-top: -6rem; /* A controlled negative margin to pull the content up slightly */
+    /* FIX: Removed the negative margin which caused the overlap. The body now sits below the header. */
+    @apply bg-white p-6 md:p-12 w-full sm:w-11/12 md:w-4/5 max-w-4xl mx-auto rounded-lg shadow-2xl relative mt-8;
 }
-
 
 /* Regular images embedded by the AI */
-.article-content img { /* General selector for any image inside the content */
+.article-content img {
     @apply rounded-lg shadow-xl my-8 mx-auto w-full h-auto;
-}
-
-/* Container for the full-width parallax image */
-.full-width-parallax-container {
-    width: 100vw;
-    margin-left: 50%;
-    transform: translateX(-50%);
-    height: 50vh;
-    position: relative;
-    @apply my-8 md:my-16;
-}
-
-/* The parallax image itself */
-.parallax-image {
-    height: 100%;
-    width: 100%;
-    background-attachment: fixed;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
 }
 
 /* --- Responsive Overrides --- */
@@ -90,6 +68,7 @@
     }
 
     .article-body-wrapper {
-        @apply -mt-12 p-6;
+        /* On mobile, remove top margin so it sits flush with other content */
+        @apply mt-0 rounded-none;
     }
 }

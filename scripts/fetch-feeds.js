@@ -75,39 +75,21 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const rssParser = new Parser();
 const articlesRef = db.collection("articles");
 
-function determineCategories(title, feedCategory) {
-    const searchTitle = title.toLowerCase();
-
-    if (feedCategory !== 'Multi-platform') {
-        const subCat = findSubCategory(searchTitle, feedCategory);
-        return { category: feedCategory, subCategory: subCat };
+// FIX: New function to check if an article is relevant to gaming
+const isArticleGamingRelated = async (title, snippet) => {
+    try {
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `Based on the title and snippet, is this article about video games, gaming hardware, or the gaming industry? Respond with only "YES" or "NO".\n\nTitle: "${title}"\nSnippet: "${snippet}"`;
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().trim().toUpperCase();
+        return text === 'YES';
+    } catch (error) {
+        console.error(`[AI Relevance Check Error] for "${title}":`, error.message);
+        return false; // Default to false on error
     }
+};
 
-    for (const mainCategory of Object.values(MAIN_CATEGORIES)) {
-        const subCat = findSubCategory(searchTitle, mainCategory);
-        if (subCat !== 'General') {
-            return { category: mainCategory, subCategory: subCat };
-        }
-    }
-    
-    return { category: 'General News', subCategory: 'General' };
-}
-
-function findSubCategory(searchTitle, mainCategory) {
-    const categoryKeywords = subCategoryKeywords[mainCategory];
-    if (!categoryKeywords) return 'General';
-
-    const sortedSubCats = Object.keys(categoryKeywords).sort((a, b) => b.length - a.length);
-
-    for (const subCat of sortedSubCats) {
-        if (categoryKeywords[subCat].some(keyword => searchTitle.includes(keyword.toLowerCase()))) {
-            return subCat;
-        }
-    }
-    return 'General';
-}
-
-// FIX: Renamed function and enhanced logic to get all relevant images
 const scrapeArticleContent = async (articleUrl) => {
     if (!articleUrl) return { heroImage: null, bodyImages: [] };
     try {
@@ -118,35 +100,24 @@ const scrapeArticleContent = async (articleUrl) => {
         const $ = cheerio.load(data);
         const seenUrls = new Set();
         const bodyImages = [];
-
-        // Prioritize Open Graph image for the hero
         let heroImage = $('meta[property="og:image"]').attr('content') || null;
 
-        // Scrape all images from the main content area
         $('article img, .post-content img, .entry-content img').each((i, elem) => {
             const src = $(elem).attr('src');
             if (!src) return;
-
-            // Resolve relative URLs to be absolute
             const absoluteSrc = new URL(src, articleUrl).href;
-
-            // Avoid duplicates and tiny tracking pixels/icons
             if (!seenUrls.has(absoluteSrc) && !absoluteSrc.includes('avatar') && !absoluteSrc.includes('data:image')) {
                 bodyImages.push(absoluteSrc);
                 seenUrls.add(absoluteSrc);
             }
         });
 
-        // If no hero image was found via Open Graph, use the first scraped image
         if (!heroImage && bodyImages.length > 0) {
-            heroImage = bodyImages.shift(); // Use the first image as hero and remove it from the body list
+            heroImage = bodyImages.shift();
         }
-        
-        // Add the hero image to the seen set to prevent it from appearing in the body as well
         if(heroImage) seenUrls.add(heroImage);
 
-        return { heroImage, bodyImages };
-
+        return { heroImage, bodyImages: bodyImages.filter(img => !seenUrls.has(img)) };
     } catch (error) {
         console.error(`[Image Scrape Error] Failed for ${articleUrl}: ${error.message}`);
         return { heroImage: null, bodyImages: [] };
@@ -162,9 +133,15 @@ const processArticle = async (item, feedInfo) => {
     const guid = item.guid || item.link;
     if (!guid || await articleExists(guid)) return;
 
-    // FIX: Call the updated scraping function
+    // FIX: Perform relevance check first
+    const isRelevant = await isArticleGamingRelated(item.title, item.contentSnippet || item.content);
+    if (!isRelevant) {
+        console.log(`[Skip] Article not relevant to gaming: ${item.title}`);
+        return;
+    }
+
     const { heroImage, bodyImages } = await scrapeArticleContent(item.link);
-    if (!heroImage) { // Only skip if we can't find a single image to use as the hero
+    if (!heroImage) {
         console.log(`[Skip] No hero image for article: ${item.title}`);
         return;
     }
@@ -175,37 +152,42 @@ const processArticle = async (item, feedInfo) => {
     const prompt = `
         You are a gaming news editor. Your task is to process an article summary and return a clean JSON object.
         Instructions:
-        1.  **Rewrite Content:** Rewrite the provided article text into an original, engaging blog post of at least 500 words. Format it in clean HTML using tags like <p>, <h2>, <h3>, <ul>, and <li>. The tone must be neutral and informative. Do NOT include any <img> tags in the HTML content you generate.
-        2.  **Generate Tags:** Create a JSON array of 3-5 relevant string tags for the article (e.g., ["Review", "RPG", "Square Enix"]).
-        3.  **JSON Output:** Output ONLY the result as a single, valid JSON object with the keys: "content" and "tags". Do not include any other text, backticks, or markdown formatting in your response.
+        1.  **Generate Short Title:** Create a catchy, concise headline, 5-8 words long.
+        2.  **Rewrite Content:** Rewrite the provided article text into an original, engaging blog post of at least 500 words. Format it in clean HTML using tags like <p>, <h2>, <h3>, <ul>, and <li>. The tone must be neutral and informative.
+        3.  **Insert Images:** From the provided imageList, naturally and contextually weave the image URLs into the generated HTML content. Use the format <img src='URL_FROM_LIST' class='article-image' alt='A descriptive alt text based on the context'>.
+        4.  **Generate Tags:** Create a JSON array of 3-5 relevant string tags for the article (e.g., ["Review", "RPG", "Square Enix"]).
+        5.  **JSON Output:** Output ONLY the result as a single, valid JSON object with the keys: "title_short", "content", and "tags". Do not include any other text, backticks, or markdown formatting.
 
         Article Text:
         Title: ${item.title}
         Snippet: ${item.contentSnippet || item.content || ''}
+        
+        imageList: ${JSON.stringify(bodyImages)}
     `;
 
     try {
         const result = await model.generateContent(prompt);
         const responseText = result.response.text().replace(/^```json\s*|```\s*$/g, '').trim();
-        const { content, tags } = JSON.parse(responseText);
+        const { title_short, content, tags } = JSON.parse(responseText);
 
         const newArticle = {
             guid: guid,
             title: item.title,
+            title_short: title_short, // Save the new short title
             link: item.link,
-            content: content,
+            content: content, // Content now includes <img> tags
             contentSnippet: item.contentSnippet || 'Read more...',
             published: item.isoDate ? admin.firestore.Timestamp.fromDate(new Date(item.isoDate)) : admin.firestore.FieldValue.serverTimestamp(),
             category: category,
             subCategory: subCategory,
             tags: tags || [],
-            imageUrl: heroImage, // Use the scraped hero image
-            bodyImages: bodyImages, // Store the array of body images
+            imageUrl: heroImage,
+            bodyImages: bodyImages, // Keep for potential future use, but they are now in content
             source: feedInfo.source,
         };
 
         await articlesRef.doc(guid).set(newArticle);
-        console.log(`[Success] Added '${item.title}' to Category: ${category}, Sub-Category: ${subCategory}`);
+        console.log(`[Success] Added '${title_short}' to Category: ${category}`);
     } catch (aiError) {
         console.error(`[AI Error] Failed for "${item.title}":`, aiError.message);
     }
@@ -213,16 +195,13 @@ const processArticle = async (item, feedInfo) => {
 
 const fetchAllFeedsConcurrently = async () => {
     console.log(`--- Starting concurrent feed fetch at ${new Date().toISOString()} ---`);
-    
     const feedPromises = feeds.map(async (feedConfig) => {
         try {
             const parsedFeed = await rssParser.parseURL(feedConfig.url);
             console.log(`[Processing Feed] ${parsedFeed.title} (${parsedFeed.items.length} items)`);
-            
             const articlePromises = parsedFeed.items.map(item => {
                 return processArticle(item, { category: feedConfig.category, source: parsedFeed.title });
             });
-            
             await Promise.allSettled(articlePromises);
         } catch (error) {
             console.error(`[Feed Error] Failed to process feed ${feedConfig.url}: ${error.message}`);
@@ -231,10 +210,8 @@ const fetchAllFeedsConcurrently = async () => {
 
     await Promise.allSettled(feedPromises);
     console.log(`--- Finished all feed processing at ${new Date().toISOString()} ---`);
-    
     await admin.app().delete();
     console.log('--- Firebase connection closed. Script finished. ---');
-    
     process.exit(0);
 };
 
