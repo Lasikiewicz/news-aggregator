@@ -1,82 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { Loading, Error, SocialShare } from './components';
+import { Layout, Loader, Hero } from './components'; // Import Hero
+import { formatDate } from './utils';
 
-export const ArticlePage = () => {
-  const { articleId } = useParams();
+export function ArticlePage() {
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [currentUrl, setCurrentUrl] = useState('');
+  const [error, setError] = useState(null);
+  const { articleId } = useParams();
 
   useEffect(() => {
-    setCurrentUrl(window.location.href);
-  }, []);
-
-  useEffect(() => {
-    const fetchArticle = async () => {
-      if (!articleId) return;
-      setLoading(true);
+    const getArticle = async () => {
       try {
+        setLoading(true);
+        // The articleId from the URL is the base64 encoded link.
+        // We assume the document ID in Firestore is this encoded link.
         const docRef = doc(db, 'articles', articleId);
         const docSnap = await getDoc(docRef);
+
         if (docSnap.exists()) {
-          const data = docSnap.data();
-          setArticle({ id: docSnap.id, ...data, published: data.published.toDate() });
+          setArticle(docSnap.data());
         } else {
           setError('Article not found.');
+          console.log('No such document!');
         }
       } catch (err) {
-        setError(`Error fetching article: ${err.message}`);
+        setError('Failed to fetch article.');
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchArticle();
+
+    getArticle();
   }, [articleId]);
 
-  if (loading) return <Loading />;
-  if (error) return <Error message={error} />;
-  if (!article) return null;
+  if (loading) {
+    return (
+      <Layout>
+        <Loader />
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <p className="text-center text-red-500">{error}</p>
+      </Layout>
+    );
+  }
+
+  if (!article) {
+    return null;
+  }
 
   return (
-    <div className="bg-white pt-8 pb-16">
-      <main className="w-4/5 max-w-6xl mx-auto">
-        <div className="mb-8 text-center">
-            <p className="text-sm font-bold text-blue-600 uppercase mb-2">{article.category}</p>
-            <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 leading-tight">{article.title}</h1>
-            <p className="text-slate-500 mt-4">
-                By <span className="font-semibold text-slate-700">Gilga</span> on {article.published.toLocaleString()}
+    // We don't use the main Layout here to allow the hero to be full-width
+    <article>
+      <Hero title={article.title} imageUrl={article.imageUrl} />
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto">
+            <p className="text-gray-500 text-sm mb-2">
+                Published on {formatDate(article.pubDate)}
             </p>
+            <p className="text-gray-600 mb-8">
+                Source: <a href={article.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{article.link}</a>
+            </p>
+            <div
+              className="article-content prose lg:prose-xl mx-auto"
+              dangerouslySetInnerHTML={{ __html: article.content }}
+            />
         </div>
-        <div className="flex gap-12">
-            <aside className="w-20 hidden md:block">
-                <div className="sticky top-28">
-                     <SocialShare articleUrl={currentUrl} title={article.title} />
-                </div>
-            </aside>
-            <article className="flex-grow">
-                <div className="prose prose-lg max-w-none prose-slate article-content" dangerouslySetInnerHTML={{ __html: article.content }} />
-            </article>
-        </div>
-        <div className="mt-12 pt-8 border-t border-slate-200">
-             {article.tags && article.tags.length > 0 && (
-                <div className="mb-8">
-                    <h3 className="text-lg font-semibold text-slate-800 mb-4">Tags</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {article.tags.map(tag => (
-                            <Link to={`/?tag=${encodeURIComponent(tag)}`} key={tag} className="bg-slate-100 text-slate-700 text-sm font-medium px-3 py-1 rounded-full hover:bg-slate-200 transition-colors">
-                                {tag}
-                            </Link>
-                        ))}
-                    </div>
-                </div>
-            )}
-             <Link to="/" className="text-blue-600 hover:underline">&larr; Back to all articles</Link>
-        </div>
-      </main>
-    </div>
+      </div>
+    </article>
   );
-};
+}
